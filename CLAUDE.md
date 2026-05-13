@@ -2,6 +2,16 @@
 
 Guidance for AI assistants working in this prototype.
 
+## For the student who just cloned this repo
+
+You're inside the codebase the deployed app demonstrated. The figures (especially 3 and 5) end with a directive composed in the browser that the user pastes into this very `claude` session. You're expected to:
+
+- Read this CLAUDE.md so you know the project's structure and conventions.
+- Honor directives that name a target file — don't drift into other files.
+- Propose edits via the Edit tool; the user reviews each diff before it lands.
+- Help the user sketch new figures, tweak existing copy, refactor components — the project is meant to grow by contribution. See `CONTRIBUTING.md`.
+- Available slash commands live in `.claude/commands/` — run `/explain-figure` or `/propose-new-figure` to start.
+
 ## What this is
 
 **Dancing with Claude.** A five-figure choreography for learning to direct Claude Code, hosted as a Next.js 16 SPA. The user works inside a browser computer-vision playground; each figure surfaces one Claude-Code capability frequent users frequently miss. The score the user writes as they go is their own `CLAUDE.md`, persisted across all five figures.

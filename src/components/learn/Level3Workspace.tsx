@@ -6,8 +6,10 @@ import { streamLevelChat } from '@/lib/level-api'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
+import { HandoffPanel } from './HandoffPanel'
 import { Button } from '@/components/ui'
 import { ArrowUp } from 'lucide-react'
+import { LEVEL_3_EXTRA_SYSTEM } from '@/lib/levels/level-3'
 import type { LevelDefinition } from '@/lib/levels/types'
 
 type Props = { level: LevelDefinition }
@@ -20,42 +22,39 @@ export function Level3Workspace({ level }: Props) {
   const [reply, setReply] = useState<string>('')
   const [buffer, setBuffer] = useState('')
   const [streaming, setStreaming] = useState(false)
+  const [loopOutput, setLoopOutput] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const allFilled = scope.trim() && target.trim() && action.trim()
+  const completed = isCompleted(level.id)
 
   const send = useCallback(async () => {
     if (!allFilled || streaming) return
-    const directive = `I'm directing you with a scoped change. Operate strictly within these bounds.
+    const composed = `Refine this directive for my local \`claude\` session.
 
 Scope: ${scope.trim()}
 Target: ${target.trim()}
-Action: ${action.trim()}
-
-Acknowledge what you'll do in one sentence, then do it. Do not touch anything outside the named target.`
+Action: ${action.trim()}`
 
     setStreaming(true)
     setBuffer('')
     setReply('')
+    setLoopOutput(null)
     const controller = new AbortController()
     abortRef.current = controller
     let buf = ''
     try {
       const full = await streamLevelChat(
         level.id,
-        [{ role: 'user', content: directive }],
+        [{ role: 'user', content: composed }],
         claudeMd,
         (d) => {
           buf += d
           setBuffer(buf)
         },
-        { signal: controller.signal },
+        { signal: controller.signal, extraSystem: LEVEL_3_EXTRA_SYSTEM },
       )
       setReply(full)
-      // Gate: user submitted with all three fields filled.
-      if (!isCompleted(level.id)) {
-        awardShape(level.id, level.shape, `${scope.trim()} | ${target.trim()} | ${action.trim()}`)
-      }
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') console.error(err)
     } finally {
@@ -63,7 +62,17 @@ Acknowledge what you'll do in one sentence, then do it. Do not touch anything ou
       setBuffer('')
       abortRef.current = null
     }
-  }, [allFilled, scope, target, action, streaming, level, claudeMd, awardShape, isCompleted])
+  }, [allFilled, scope, target, action, streaming, level, claudeMd])
+
+  const handleLoopClosed = useCallback(
+    (pastedOutput: string) => {
+      setLoopOutput(pastedOutput)
+      if (!completed) {
+        awardShape(level.id, level.shape, `closed loop with ${pastedOutput.length} chars`)
+      }
+    },
+    [awardShape, completed, level],
+  )
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -71,19 +80,19 @@ Acknowledge what you'll do in one sentence, then do it. Do not touch anything ou
         <div className="border-border-subtle bg-surface flex flex-col gap-3 rounded-lg border p-4">
           <Field
             label="Scope"
-            placeholder="What slice of the project? (e.g. the behavior rules)"
+            placeholder="What slice of the project? (e.g. the face detector's confidence threshold)"
             value={scope}
             onChange={setScope}
           />
           <Field
             label="Target"
-            placeholder="Which specific rule, note, or section? (e.g. behavior rule #2)"
+            placeholder="Which specific file or component? (e.g. WebcamPlayground.tsx)"
             value={target}
             onChange={setTarget}
           />
           <Field
             label="Action"
-            placeholder="What single change? (e.g. tighten its wording to require a number, not a vague threshold)"
+            placeholder="What single change? (e.g. add a slider that updates the threshold state)"
             value={action}
             onChange={setAction}
             multiline
@@ -92,6 +101,9 @@ Acknowledge what you'll do in one sentence, then do it. Do not touch anything ou
 
         {reply && !buffer && (
           <ClaudeMessage>
+            <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
+              Refined directive
+            </div>
             <ClaudeMarkdown text={reply} />
           </ClaudeMessage>
         )}
@@ -100,12 +112,23 @@ Acknowledge what you'll do in one sentence, then do it. Do not touch anything ou
             <ClaudeParagraph className="whitespace-pre-wrap">{buffer}</ClaudeParagraph>
           </ClaudeMessage>
         )}
+
+        {reply && !buffer && (
+          <div className="mt-3">
+            <HandoffPanel
+              directive={reply}
+              onLoopClosed={handleLoopClosed}
+              alreadyClosed={completed && loopOutput != null}
+              pastedOutput={loopOutput}
+            />
+          </div>
+        )}
       </div>
 
       <ShapeAwardBanner
         levelId={level.id}
         shapeLabel="Arc"
-        copy="You wrote a directive instead of a chat. Notice how Claude's response is on-target and bounded — that's what scope, target, and action buy you."
+        copy="You composed a directive, ran it on your machine, and brought the receipts back. That round-trip is the muscle: a precise request → real Claude edit → review in your terminal."
       />
 
       <div className="flex items-center justify-end gap-2">

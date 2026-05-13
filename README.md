@@ -37,7 +37,20 @@ node --version   # should print v24.15.0 (or your installed 20.18+)
 
 If you don't use a version manager, install Node 24.15.0 from <https://nodejs.org/> (or your OS package manager). Anything ≥ 20.18 will work; 24.15.0 is what this prototype is tested against.
 
-## Quick start
+## Practice this with your own Claude Code
+
+This repo is the project you're learning to direct. Figures 3 and 5 are designed as a round-trip: you compose a directive in the browser, run it against this cloned codebase in your own `claude` session, then paste back what Claude said to close the loop.
+
+```bash
+git clone <this-repo-url>
+cd dancing-with-claude/prototype
+npm install
+claude    # opens Claude Code in this folder; it reads CLAUDE.md on start
+```
+
+Good first moves once you're in: try `/explain-figure 1` to have Claude walk you through a figure's code, or paste a directive from Figure 3 of the deployed app and watch Claude propose the edit. See `CONTRIBUTING.md` for the fork → branch → claude → PR loop.
+
+## Quick start (deployed app)
 
 ```bash
 nvm use                       # optional but recommended
@@ -46,7 +59,7 @@ cp .env.example .env.local    # add your ANTHROPIC_API_KEY
 npm run dev
 ```
 
-Open <http://localhost:3000/learn>.
+Open <http://localhost:3000>.
 
 Without an `ANTHROPIC_API_KEY`, the figure-chat API returns a fingerprint-free generic reply so the gate fails honestly — set the key to unlock real Claude responses.
 
