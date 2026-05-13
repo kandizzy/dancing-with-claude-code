@@ -7,7 +7,7 @@ import { Level2Workspace } from '@/components/learn/Level2Workspace'
 import { Level3Workspace } from '@/components/learn/Level3Workspace'
 import { Level4Workspace } from '@/components/learn/Level4Workspace'
 import { Level5Workspace } from '@/components/learn/Level5Workspace'
-import { ClaudeMdAuthor } from '@/components/learn/ClaudeMdAuthor'
+import { ClaudeMdDrawer } from '@/components/learn/ClaudeMdDrawer'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { OnboardingCard } from '@/components/learn/OnboardingCard'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
@@ -29,6 +29,8 @@ export default function LevelPage() {
     <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-4 overflow-hidden px-6 py-6">
       <LearnHeader />
 
+      <ClaudeMdDrawer />
+
       {isFigure1 && (
         <OnboardingCard storageKey="education-labs:onboard-figure-1">
           <p className="m-0">
@@ -36,18 +38,16 @@ export default function LevelPage() {
               Claude reads a file called <code className="font-mono text-xs">CLAUDE.md</code>{' '}
               before every reply.
             </strong>{' '}
-            Here it is, on the left. Edit anything. Claude will see your edits on the next ask —
-            and the next reply that draws on what you wrote earns you the circle.
+            Open the bar above to read or edit it. The drawer pops open automatically when you
+            add a note from a reply — and the next reply that draws on what you wrote earns you
+            the circle.
           </p>
         </OnboardingCard>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_minmax(0,_1.2fr)]">
-        <ClaudeMdAuthor className="min-h-0" />
-        <div className="flex min-h-0 flex-col gap-3">
-          {isFigure1 && <WebcamPlayground className="shrink-0" />}
-          <Workspace level={level} />
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {isFigure1 && <WebcamPlayground className="shrink-0" />}
+        <Workspace level={level} />
       </div>
     </div>
   )

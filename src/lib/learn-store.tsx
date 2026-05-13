@@ -19,6 +19,8 @@ type LearnState = {
   // The full CLAUDE.md as a single markdown string. The user can edit this freely;
   // we parse out specific sections (Notes, Behavior) elsewhere when needed.
   claudeMd: string
+  // Whether the CLAUDE.md drawer (rendered on every page) is currently expanded.
+  claudeMdOpen: boolean
 }
 
 type LearnStore = LearnState & {
@@ -27,6 +29,7 @@ type LearnStore = LearnState & {
   awardShape: (id: LevelId, shape: ShapeKind, evidence: string) => void
   setClaudeMd: (text: string) => void
   appendNote: (text: string) => void
+  setClaudeMdOpen: (open: boolean) => void
   reset: () => void
 }
 
@@ -36,6 +39,7 @@ const INITIAL: LearnState = {
   earnedShapes: [],
   matchedAt: {},
   claudeMd: SEED_CLAUDE_MD,
+  claudeMdOpen: false,
 }
 
 const LearnContext = createContext<LearnStore | null>(null)
@@ -80,6 +84,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
             earnedShapes: parsed.earnedShapes ?? [],
             matchedAt: parsed.matchedAt ?? {},
             claudeMd: migrateClaudeMd(parsed.claudeMd),
+            claudeMdOpen: parsed.claudeMdOpen ?? false,
           })
         }
       } catch {
@@ -125,6 +130,10 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, claudeMd: appendNoteToMarkdown(prev.claudeMd, text) }))
   }, [])
 
+  const setClaudeMdOpen = useCallback((open: boolean) => {
+    setState((prev) => ({ ...prev, claudeMdOpen: open }))
+  }, [])
+
   const reset = useCallback(() => setState(INITIAL), [])
 
   const value = useMemo<LearnStore>(
@@ -135,9 +144,19 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       awardShape,
       setClaudeMd,
       appendNote,
+      setClaudeMdOpen,
       reset,
     }),
-    [state, isCompleted, isUnlocked, awardShape, setClaudeMd, appendNote, reset],
+    [
+      state,
+      isCompleted,
+      isUnlocked,
+      awardShape,
+      setClaudeMd,
+      appendNote,
+      setClaudeMdOpen,
+      reset,
+    ],
   )
 
   return <LearnContext.Provider value={value}>{children}</LearnContext.Provider>

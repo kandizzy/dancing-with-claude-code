@@ -13,7 +13,7 @@ type PromoteButtonProps = {
 // Add a phrase from a Claude reply to the ## Notes section of CLAUDE.md.
 // The edit step (refining the seed text before saving) is the user's authorship moment.
 export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
-  const { appendNote } = useLearnStore()
+  const { appendNote, setClaudeMdOpen } = useLearnStore()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [justAdded, setJustAdded] = useState(false)
@@ -66,6 +66,8 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
           onClick={() => {
             if (draft.trim()) {
               appendNote(draft)
+              // Pop the drawer so the user sees their note land in the file.
+              setClaudeMdOpen(true)
               setJustAdded(true)
               setOpen(false)
               setTimeout(() => setJustAdded(false), 2500)
