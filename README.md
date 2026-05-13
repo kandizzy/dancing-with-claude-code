@@ -12,11 +12,33 @@ The progression axis is **Claude-usage sophistication**, not the domain. Levels:
 | 4 | Square | Reading tool-use as it happens; reviewing before accept |
 | 5 | Composite | Scoping changes to one segment |
 
+## Requirements
+
+- **Node.js 20.18+** (declared in `package.json` `engines.node`).
+- **Recommended: Node 24.15.0 LTS** — pinned in `.nvmrc`.
+
+If you use `nvm`, `fnm`, or `asdf`, the `.nvmrc` is picked up automatically.
+
+```bash
+# with nvm
+nvm install   # reads .nvmrc → installs 24.15.0 if missing
+nvm use       # activates 24.15.0 for this shell
+
+# with fnm
+fnm use       # same idea
+
+# verify
+node --version   # should print v24.15.0 (or your installed 20.18+)
+```
+
+If you don't use a version manager, install Node 24.15.0 from <https://nodejs.org/> (or your OS package manager). Anything ≥ 20.18 will work; 24.15.0 is what this prototype is tested against.
+
 ## Quick start
 
 ```bash
+nvm use                       # optional but recommended
 npm install
-cp .env.example .env.local   # add your ANTHROPIC_API_KEY
+cp .env.example .env.local    # add your ANTHROPIC_API_KEY
 npm run dev
 ```
 
