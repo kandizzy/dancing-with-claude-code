@@ -17,3 +17,4 @@ Inputs the user can give the playground: live webcam stream or a still image the
 - Stick to MediaPipe Tasks. Do not reference YOLO, OpenCV, or other libraries unless the user asks. If the user asks about an out-of-stack tool, name the closest in-stack alternative.
 
 ## Notes
+- Smooth jitter with an EMA on `boundingBox` and keypoints: `x = α·new + (1−α)·prev`, α ≈ 0.3–0.5 (lower = smoother but laggier). For presence toggles, add hysteresis — require N frames above threshold to turn on, M below to turn off (e.g. 3 on, 5 off) to stop strobing at the edge of range.

@@ -109,20 +109,47 @@ export function findUserEntryMatch(reply: string, claudeMd: string): string | nu
   return null
 }
 
+// Lowercase, strip any non-letter/non-number char (keeps Unicode α etc.) and collapse
+// whitespace. This makes word boundaries clean — punctuation like `, . — ) ( ` ' "` no
+// longer attaches to words and trip up slice matching.
 function normalize(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, ' ').trim()
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function entryMatches(entryText: string, normReply: string): boolean {
   const norm = normalize(entryText)
   if (norm.length < 12) return false
   if (normReply.includes(norm)) return true
-  // Fallback: any 4+ consecutive words from the entry appear in the reply.
+  // Fallback: any 3+ consecutive words from the entry appear in the reply. Reduced from 4
+  // because real replies paraphrase rather than copy — 4-word matches missed cases where
+  // Claude obviously drew on the note but rephrased.
   const words = norm.split(' ')
-  if (words.length < 4) return false
-  for (let i = 0; i + 4 <= words.length; i++) {
-    const slice = words.slice(i, i + 4).join(' ')
+  if (words.length < 3) return false
+  for (let i = 0; i + 3 <= words.length; i++) {
+    const slice = words.slice(i, i + 3).join(' ')
+    // Skip 3-word slices that are too generic (mostly stopwords) so we don't match on
+    // "and the to" or "is in the".
+    if (isTooGeneric(slice)) continue
     if (normReply.includes(slice)) return true
   }
   return false
+}
+
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been',
+  'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'as', 'it', 'its', 'this',
+  'that', 'these', 'those', 'i', 'you', 'we', 'they', 'them', 'us', 'me', 'my',
+  'your', 'our', 'their', 'so', 'if', 'when', 'then', 'do', 'does', 'did',
+  'can', 'will', 'would', 'should', 'could', 'have', 'has', 'had',
+])
+
+function isTooGeneric(slice: string): boolean {
+  const words = slice.split(' ')
+  const contentful = words.filter((w) => !STOPWORDS.has(w))
+  // A 3-word slice with fewer than 2 contentful words is essentially "the of in" — junk.
+  return contentful.length < 2
 }
