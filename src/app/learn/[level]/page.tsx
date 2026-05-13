@@ -35,11 +35,12 @@ export default function LevelPage() {
           className="text-text-tertiary hover:text-text-primary mb-2 inline-flex items-center gap-1 text-xs"
         >
           <ArrowLeft className="size-3" />
-          All levels
+          All figures
         </Link>
-        <h1 className="font-serif text-text-primary text-3xl">
-          L{level.id}. {level.title}
-        </h1>
+        <div className="font-script text-[color:var(--color-accent)] text-xl leading-none">
+          Figure {level.id}
+        </div>
+        <h1 className="font-serif text-text-primary mt-1 text-3xl">{level.title}</h1>
         <p className="text-text-tertiary mt-1 text-sm">{level.capability}</p>
       </div>
 
