@@ -23,16 +23,11 @@ export default function Home() {
     <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-5 overflow-hidden px-6 py-6">
       <LearnHeader />
 
-      <section className="max-w-3xl">
-        <h1 className="font-serif text-text-primary text-3xl leading-tight">
-          Dancing with Claude
-        </h1>
-        <p className="text-text-secondary mt-2 text-sm leading-relaxed">
-          A five-figure choreography for learning to direct Claude Code. The playground is the
-          stage; your CLAUDE.md is the score you write as you dance. Figures are asynchronous —
-          revisit any one, in any order.
-        </p>
-      </section>
+      <p className="text-text-secondary max-w-3xl text-sm leading-relaxed">
+        A five-figure choreography for learning to direct Claude Code. The playground is the
+        stage; your <code className="font-mono text-xs">CLAUDE.md</code> is the score you write
+        as you dance. Figures are asynchronous — revisit any one, in any order.
+      </p>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1.1fr)_minmax(0,_1fr)]">
         <div className="flex min-h-0 flex-col gap-2">

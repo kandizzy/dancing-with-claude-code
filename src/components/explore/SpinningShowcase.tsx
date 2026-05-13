@@ -5,22 +5,18 @@ import { Stage } from './Stage'
 import { useRafLoop, easeInOutCubic } from '@/lib/anim'
 
 const W = 720
-const H = 280
+const H = 300
 
-// Concentric disks at 1:2:3 rates — phase-locked, returns to identity every
-// LCM(1,2,3) = 6 full rotations of the slowest. Anchored to one center.
 const DISK_CYCLE_MS = 6000
-
-// Hold-then-snap rotation echoes Schlemmer's grid choreography: held pose,
-// rapid transition, held pose. Easing only during the snap window.
 const SNAP_HOLD_MS = 1400
 const SNAP_DUR_MS = 280
 const SNAP_CYCLE_MS = SNAP_HOLD_MS + SNAP_DUR_MS
-const SNAP_STEPS = 6 // hexagonal — 60° per step
-
-// Anchor demo: same triangle rotated around three different points so the
-// user feels how anchor choice changes the gesture.
+const SNAP_STEPS = 6
 const ANCHOR_CYCLE_MS = 3000
+
+const INK = 'var(--color-stage)'
+const PAPER = 'var(--color-page)'
+const PENCIL = 'var(--color-text-tertiary)'
 
 export function SpinningShowcase() {
   const diskRefs = useRef<Array<SVGGElement | null>>([])
@@ -28,20 +24,18 @@ export function SpinningShowcase() {
   const anchorRefs = useRef<Array<SVGGElement | null>>([])
 
   useRafLoop((elapsed) => {
-    // --- Concentric disks ---
+    // Concentric disks
     const diskT = (elapsed % DISK_CYCLE_MS) / DISK_CYCLE_MS
     const baseAngle = diskT * 360
     const rates = [1, 2, 3]
     rates.forEach((rate, i) => {
       const node = diskRefs.current[i]
       if (!node) return
-      // Counter-rotate every other ring to avoid the whole stack reading
-      // as a single solid object — keeps each ring visually distinct.
       const sign = i % 2 === 0 ? 1 : -1
-      node.setAttribute('transform', `rotate(${(baseAngle * rate * sign).toFixed(2)} 120 ${H / 2})`)
+      node.setAttribute('transform', `rotate(${(baseAngle * rate * sign).toFixed(2)} 130 ${H / 2})`)
     })
 
-    // --- Hold-then-snap ---
+    // Hold-then-snap
     const slot = elapsed % SNAP_CYCLE_MS
     const stepIdx = Math.floor(elapsed / SNAP_CYCLE_MS) % SNAP_STEPS
     const inSnap = slot >= SNAP_HOLD_MS
@@ -54,11 +48,9 @@ export function SpinningShowcase() {
     } else {
       snapAngle = fromAngle
     }
-    if (snapRef.current) {
-      snapRef.current.setAttribute('transform', `rotate(${snapAngle.toFixed(2)} 360 ${H / 2})`)
-    }
+    snapRef.current?.setAttribute('transform', `rotate(${snapAngle.toFixed(2)} 360 ${H / 2})`)
 
-    // --- Anchor demo: same triangle, three anchors ---
+    // Anchor demo
     const anchorT = (elapsed % ANCHOR_CYCLE_MS) / ANCHOR_CYCLE_MS
     const anchorAngle = anchorT * 360
     const anchors: Array<[number, number]> = [
@@ -77,103 +69,134 @@ export function SpinningShowcase() {
     <Stage
       title="Spinning"
       caption="Phase-locked rates · hold-then-snap · anchor choice"
-      grid
     >
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Spinning experiments">
-        {/* --- Concentric disks (left third) --- */}
+        <defs>
+          <radialGradient id="disk-wash-1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="disk-wash-2" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="disk-wash-3" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--color-tertiary)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--color-tertiary)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Three "cells" — each experiment in its own pencil-ruled cell,
+            like the choreographic score in IMG_6573. */}
+        {[40, 280, 520].map((x, i) => (
+          <rect
+            key={i}
+            x={x}
+            y={36}
+            width={200}
+            height={H - 60}
+            fill="transparent"
+            stroke={PENCIL}
+            strokeWidth={0.5}
+            strokeDasharray="2 3"
+          />
+        ))}
+
+        {/* --- Concentric disks --- */}
         <g>
-          <text x={20} y={28} className="fill-white/55 font-mono text-[10px] uppercase tracking-widest">
+          <text x={50} y={28} fill={PENCIL} className="font-mono text-[10px] uppercase tracking-widest">
             1 : 2 : 3
           </text>
-          {[64, 44, 24].map((r, i) => (
+          {/* Watercolor spotlight under the disks */}
+          <circle cx={130} cy={H / 2} r={74} fill="url(#disk-wash-1)" />
+          {[58, 40, 22].map((r, i) => (
             <g key={i} ref={(el) => { diskRefs.current[i] = el }}>
               <circle
-                cx={120}
+                cx={130}
                 cy={H / 2}
                 r={r}
                 fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth={2}
-                opacity={0.85}
+                stroke={INK}
+                strokeWidth={0.9}
               />
-              {/* Tick mark so rotation is visible */}
               <line
-                x1={120}
-                x2={120}
+                x1={130}
+                x2={130}
                 y1={H / 2 - r}
-                y2={H / 2 - r + 8}
+                y2={H / 2 - r + 6}
                 stroke="var(--color-accent-strong)"
-                strokeWidth={3}
+                strokeWidth={2}
                 strokeLinecap="round"
               />
             </g>
           ))}
         </g>
 
-        {/* --- Hold-then-snap hexagon (middle third) --- */}
+        {/* --- Hold-then-snap --- */}
         <g>
-          <text x={300} y={28} className="fill-white/55 font-mono text-[10px] uppercase tracking-widest">
+          <text x={290} y={28} fill={PENCIL} className="font-mono text-[10px] uppercase tracking-widest">
             hold · snap · hold
           </text>
-          {/* Static reference outline shows the destination cells */}
+          <circle cx={360} cy={H / 2} r={70} fill="url(#disk-wash-2)" />
           {Array.from({ length: SNAP_STEPS }).map((_, i) => {
-            const a = (i * 360) / SNAP_STEPS
+            const a = (i * 360) / SNAP_STEPS - 90
             const rad = (a * Math.PI) / 180
             return (
               <circle
                 key={i}
                 cx={360 + 56 * Math.cos(rad)}
                 cy={H / 2 + 56 * Math.sin(rad)}
-                r={2}
-                fill="rgba(255,255,255,0.18)"
+                r={1.6}
+                fill={PENCIL}
               />
             )
           })}
           <g ref={(el) => { snapRef.current = el }}>
             <polygon
-              points="360,82 416,124 416,176 360,218 304,176 304,124"
-              fill="none"
-              stroke="var(--color-tertiary)"
-              strokeWidth={2}
+              points="360,94 408,128 408,172 360,206 312,172 312,128"
+              fill="var(--color-secondary)"
+              fillOpacity={0.18}
+              stroke={INK}
+              strokeWidth={0.9}
             />
             <line
               x1={360}
               x2={360}
               y1={H / 2 - 56}
-              y2={H / 2 - 44}
-              stroke="var(--color-tertiary)"
-              strokeWidth={3}
+              y2={H / 2 - 48}
+              stroke="var(--color-secondary-strong)"
+              strokeWidth={2}
               strokeLinecap="round"
             />
           </g>
         </g>
 
-        {/* --- Anchor demo (right third) --- */}
+        {/* --- Anchor demo --- */}
         <g>
-          <text x={550} y={28} className="fill-white/55 font-mono text-[10px] uppercase tracking-widest">
+          <text x={530} y={28} fill={PENCIL} className="font-mono text-[10px] uppercase tracking-widest">
             anchor choice
           </text>
+          <circle cx={595} cy={H / 2} r={72} fill="url(#disk-wash-3)" />
           {(['centroid', 'vertex', 'off-axis'] as const).map((label, i) => {
-            const offsetY = i * 0 // single row, but each anchor offsets the same triangle
             const cx = [560, 600, 620][i]
             return (
               <g key={label}>
-                {/* Anchor point indicator */}
-                <circle cx={cx} cy={H / 2 + offsetY} r={2} fill="var(--color-paper)" />
+                <circle cx={cx} cy={H / 2} r={1.8} fill={INK} />
                 <g ref={(el) => { anchorRefs.current[i] = el }}>
                   <polygon
-                    points={`580,${H / 2 - 24} 600,${H / 2 + 14} 560,${H / 2 + 14}`}
+                    points={`580,${H / 2 - 22} 600,${H / 2 + 14} 560,${H / 2 + 14}`}
                     fill="none"
-                    stroke="var(--color-secondary)"
-                    strokeWidth={1.5}
+                    stroke={INK}
+                    strokeWidth={0.85}
                     opacity={0.55}
                   />
                 </g>
                 <text
                   x={cx}
-                  y={H - 8}
+                  y={H - 18}
                   textAnchor="middle"
-                  className="fill-white/45 font-mono text-[9px] uppercase tracking-widest"
+                  fill={PENCIL}
+                  className="font-mono text-[9px] uppercase tracking-widest"
                 >
                   {label}
                 </text>

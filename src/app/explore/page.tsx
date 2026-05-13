@@ -19,10 +19,10 @@ export default function ExplorePage() {
   const [tab, setTab] = useState<Tab>('dancer')
 
   return (
-    <div className="flex h-dvh flex-col bg-[var(--color-paper)] text-[var(--color-ink)]">
+    <div className="flex h-dvh flex-col bg-[var(--color-page)] text-[var(--color-text-primary)]">
       <header className="flex items-baseline justify-between gap-6 border-b border-[var(--color-border-subtle)] px-8 py-5">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
             Sandbox · Iterative work
           </p>
           <h1 className="font-serif text-2xl leading-tight tracking-tight">
@@ -31,7 +31,7 @@ export default function ExplorePage() {
         </div>
         <Link
           href="/"
-          className="font-mono text-[11px] text-[var(--color-ink-3)] underline-offset-4 hover:underline"
+          className="font-mono text-[11px] text-[var(--color-text-tertiary)] underline-offset-4 hover:underline"
         >
           ← back to figures
         </Link>
@@ -46,22 +46,22 @@ export default function ExplorePage() {
             className={cn(
               'group flex items-baseline gap-3 border-b-2 pb-2 transition-colors',
               tab === t.key
-                ? 'border-[var(--color-accent)]'
+                ? 'border-[var(--color-stage)]'
                 : 'border-transparent hover:border-[var(--color-border-subtle)]',
             )}
           >
             <span
               className={cn(
                 'font-serif text-lg leading-none',
-                tab === t.key ? 'text-[var(--color-ink)]' : 'text-[var(--color-ink-2)]',
+                tab === t.key ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)]',
               )}
             >
               {t.label}
             </span>
             <span
               className={cn(
-                'font-mono text-[10px] uppercase tracking-[0.12em] transition-opacity',
-                tab === t.key ? 'opacity-100 text-[var(--color-ink-3)]' : 'opacity-0 group-hover:opacity-70',
+                'font-serif italic text-[12px] transition-opacity',
+                tab === t.key ? 'opacity-100 text-[var(--color-text-tertiary)]' : 'opacity-0 group-hover:opacity-70',
               )}
             >
               {t.hint}

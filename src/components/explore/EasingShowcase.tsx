@@ -5,8 +5,8 @@ import { Stage } from './Stage'
 import { EASINGS, useRafLoop, type EasingFn } from '@/lib/anim'
 
 const W = 720
-const H = 220
-const PAD_X = 40
+const H = 240
+const PAD_X = 44
 const TRAVEL_MS = 1800
 const HOLD_MS = 800
 const CYCLE_MS = TRAVEL_MS + HOLD_MS
@@ -20,7 +20,7 @@ const LANES: Array<{ key: keyof typeof EASINGS; label: string; description: stri
 ]
 
 const LANE_HEIGHT = H / LANES.length
-const TRIANGLE_SIZE = 14
+const TRIANGLE_SIZE = 13
 
 export function EasingShowcase() {
   const groupRefs = useRef<Array<SVGGElement | null>>([])
@@ -28,8 +28,6 @@ export function EasingShowcase() {
 
   useRafLoop((elapsed) => {
     const slot = elapsed % CYCLE_MS
-    // Only the travel phase animates; the hold phase pauses at the destination
-    // so the eye can compare resting positions. Echoes Schlemmer's grid poses.
     const rawT = Math.min(slot / TRAVEL_MS, 1)
 
     for (let i = 0; i < LANES.length; i++) {
@@ -40,8 +38,6 @@ export function EasingShowcase() {
       const eased = ease(rawT)
       const x = PAD_X + eased * (W - PAD_X * 2)
       const y = LANE_HEIGHT * (i + 0.5)
-      // Triangles rotate as they travel to emphasize the velocity profile —
-      // fast sections show motion blur in the eye even without filters.
       const rotation = eased * 360
       node.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${rotation.toFixed(2)})`)
     }
@@ -50,37 +46,36 @@ export function EasingShowcase() {
   return (
     <Stage
       title="Easing studio"
-      caption="Five lanes, one triangle, five easings — same start and end, different phrasing"
-      grid
+      caption="Same triangle, five easings — start and end identical, phrasing different"
     >
-      <div className="grid grid-cols-[1fr_240px] gap-4 p-4">
+      <div className="grid grid-cols-[1fr_240px] gap-5">
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Easing comparison">
           {LANES.map((lane, i) => {
             const y = LANE_HEIGHT * (i + 0.5)
             const isActive = activeEasing === null || activeEasing === lane.key
             return (
               <g key={lane.key} opacity={isActive ? 1 : 0.18}>
-                {/* Lane rail */}
+                {/* Lane rail — thin pencil rule */}
                 <line
                   x1={PAD_X}
                   x2={W - PAD_X}
                   y1={y}
                   y2={y}
-                  stroke="rgba(255,255,255,0.18)"
-                  strokeWidth={1}
+                  stroke="var(--color-text-tertiary)"
+                  strokeWidth={0.6}
                   strokeDasharray="2 4"
                 />
-                {/* Start marker */}
-                <circle cx={PAD_X} cy={y} r={2.5} fill="rgba(255,255,255,0.4)" />
-                {/* End marker */}
-                <circle cx={W - PAD_X} cy={y} r={2.5} fill="rgba(255,255,255,0.4)" />
+                {/* Start + end ink marks */}
+                <circle cx={PAD_X} cy={y} r={2.2} fill="var(--color-stage)" />
+                <circle cx={W - PAD_X} cy={y} r={2.2} fill="var(--color-stage)" />
                 {/* Traveling triangle */}
                 <g ref={(el) => { groupRefs.current[i] = el }}>
                   <polygon
                     points={`0,${-TRIANGLE_SIZE} ${TRIANGLE_SIZE * 0.866},${TRIANGLE_SIZE * 0.5} ${-TRIANGLE_SIZE * 0.866},${TRIANGLE_SIZE * 0.5}`}
                     fill="var(--color-secondary)"
-                    stroke="var(--color-secondary-strong)"
-                    strokeWidth={1}
+                    fillOpacity={0.5}
+                    stroke="var(--color-stage)"
+                    strokeWidth={0.8}
                     strokeLinejoin="round"
                   />
                 </g>
@@ -99,14 +94,14 @@ export function EasingShowcase() {
                   onMouseLeave={() => setActiveEasing(null)}
                   onFocus={() => setActiveEasing(lane.key)}
                   onBlur={() => setActiveEasing(null)}
-                  className={`block w-full rounded-sm border px-2 py-1.5 text-left transition-colors ${
+                  className={`block w-full border px-2 py-1.5 text-left transition-colors ${
                     active
-                      ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/15'
-                      : 'border-transparent hover:bg-white/5'
+                      ? 'border-[var(--color-stage)] bg-[var(--color-state-active)]'
+                      : 'border-transparent hover:bg-[var(--color-state-hover)]'
                   }`}
                 >
-                  <span className="font-mono text-[11px] text-[var(--color-paper)]">{lane.label}</span>
-                  <span className="block text-[10px] leading-snug text-[var(--color-paper)]/55">
+                  <span className="font-mono text-[11px] text-[var(--color-text-primary)]">{lane.label}</span>
+                  <span className="block font-serif italic text-[11px] leading-snug text-[var(--color-text-tertiary)]">
                     {lane.description}
                   </span>
                 </button>
