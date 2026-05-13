@@ -7,7 +7,7 @@ import { UserMessage } from '@/components/chat/UserMessage'
 import { MODELS, type Model } from '@/lib/api'
 import { streamLevelChat, type LevelMessage } from '@/lib/level-api'
 import { findUserEntryMatch } from '@/lib/levels/registry'
-import type { LevelDefinition, UserEntry } from '@/lib/levels/types'
+import type { LevelDefinition } from '@/lib/levels/types'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
 import { Check } from 'lucide-react'
@@ -17,23 +17,20 @@ const HAIKU = MODELS.find((m) => m.id === 'claude-haiku-4-5') ?? MODELS[0]
 
 type LevelChatProps = {
   level: LevelDefinition
-  onMatchedEntry?: (entry: UserEntry | null) => void
+  onMatchedText?: (text: string | null) => void
   className?: string
-  // Optional one-click prompts shown above the input when the chat is empty.
-  // Disappear after the first send.
   suggestedPrompts?: string[]
-  // Override the empty-state framing line.
   emptyHint?: string
 }
 
 type RenderedMessage = LevelMessage & {
   id: string
-  matchedEntry?: UserEntry | null
+  matchedText?: string | null
 }
 
 export function LevelChat({
   level,
-  onMatchedEntry,
+  onMatchedText,
   className,
   suggestedPrompts,
   emptyHint,
@@ -72,17 +69,17 @@ export function LevelChat({
           },
           { model: model.id, signal: controller.signal },
         )
-        const matched = findUserEntryMatch(full, claudeMd.userEntries)
+        const matched = findUserEntryMatch(full, claudeMd)
         const assistantMsg: RenderedMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: full,
-          matchedEntry: matched,
+          matchedText: matched,
         }
         setMessages((m) => [...m, assistantMsg])
-        onMatchedEntry?.(matched)
+        onMatchedText?.(matched)
         if (matched && !completed) {
-          awardShape(level.id, level.shape, matched.text)
+          awardShape(level.id, level.shape, matched)
         }
       } catch (err) {
         if ((err as Error)?.name !== 'AbortError') {
@@ -94,7 +91,7 @@ export function LevelChat({
         abortRef.current = null
       }
     },
-    [messages, level, awardShape, completed, claudeMd, model, onMatchedEntry],
+    [messages, level, awardShape, completed, claudeMd, model, onMatchedText],
   )
 
   const handleStop = useCallback(() => {
@@ -102,16 +99,12 @@ export function LevelChat({
   }, [])
 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
-  const showSuccess = completed && lastAssistant?.matchedEntry
-  const hasNoEntries = claudeMd.userEntries.length === 0
+  const showSuccess = completed && lastAssistant?.matchedText
   const isEmpty = messages.length === 0
-  const showFirstAskNudge =
-    !streaming && lastAssistant && !lastAssistant.matchedEntry && hasNoEntries && !completed
   const showFollowUpNudge =
     !streaming &&
     lastAssistant &&
-    !lastAssistant.matchedEntry &&
-    !hasNoEntries &&
+    !lastAssistant.matchedText &&
     !completed
   const showChips =
     isEmpty && !streaming && suggestedPrompts && suggestedPrompts.length > 0
@@ -135,7 +128,7 @@ export function LevelChat({
             <div key={m.id}>
               <ClaudeMessage>
                 <ClaudeParagraph className="whitespace-pre-wrap">
-                  {highlightMatch(m.content, m.matchedEntry)}
+                  {highlightMatch(m.content, m.matchedText)}
                 </ClaudeParagraph>
               </ClaudeMessage>
               <div className="-mt-1 mb-3 flex items-center gap-3 pl-4">
@@ -165,21 +158,12 @@ export function LevelChat({
         </div>
       )}
 
-      {showFirstAskNudge && (
-        <div className="border-border-subtle rounded-md border p-4 text-sm">
-          <p className="text-text-secondary m-0">
-            Notice the reply doesn't reflect anything specific to your project yet — your CLAUDE.md
-            only has the seed content. Try adding something to it from this reply (or write your
-            own note in the file), then ask a similar question again.
-          </p>
-        </div>
-      )}
-
       {showFollowUpNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
           <p className="text-text-secondary m-0">
-            Claude didn't quote your notes this time. Try asking something that depends on one of
-            them, or rewrite a note to be more specific.
+            Claude didn't draw on your notes this time. Try adding a note to the{' '}
+            <code className="font-mono text-xs">## Notes</code> section of CLAUDE.md — or
+            rewrite one to be more specific — and ask again.
           </p>
         </div>
       )}
@@ -212,17 +196,14 @@ export function LevelChat({
   )
 }
 
-// Wrap a matched entry's text in a highlight span where it appears in the reply.
-// Falls back to the longest 4-word slice if the full entry isn't substring-present.
-function highlightMatch(text: string, matched: UserEntry | null | undefined) {
+function highlightMatch(text: string, matched: string | null | undefined) {
   if (!matched) return text
-  const normEntry = matched.text.toLowerCase()
+  const normEntry = matched.toLowerCase()
   const normText = text.toLowerCase()
   let idx = normText.indexOf(normEntry)
-  let len = matched.text.length
+  let len = matched.length
   if (idx < 0) {
-    // Try 4-word slices.
-    const words = matched.text.split(/\s+/)
+    const words = matched.split(/\s+/)
     for (let i = 0; i + 4 <= words.length; i++) {
       const slice = words.slice(i, i + 4).join(' ').toLowerCase()
       const at = normText.indexOf(slice)

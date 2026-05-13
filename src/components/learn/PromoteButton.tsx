@@ -10,10 +10,10 @@ type PromoteButtonProps = {
   className?: string
 }
 
-// Small affordance next to a Claude reply. Click to draft an entry pre-filled from the reply,
-// edit it, and add to CLAUDE.md. The edit step is the user's authorship moment.
+// Add a phrase from a Claude reply to the ## Notes section of CLAUDE.md.
+// The edit step (refining the seed text before saving) is the user's authorship moment.
 export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
-  const { promoteEntry } = useLearnStore()
+  const { appendNote } = useLearnStore()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [justAdded, setJustAdded] = useState(false)
@@ -32,7 +32,6 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
       <button
         type="button"
         onClick={() => {
-          // Prefill with the reply but trimmed to a manageable length — encourages the user to refine.
           const trimmed = sourceText.trim()
           const seed = trimmed.length > 240 ? trimmed.slice(0, 237) + '…' : trimmed
           setDraft(seed)
@@ -66,7 +65,7 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
           type="button"
           onClick={() => {
             if (draft.trim()) {
-              promoteEntry(draft, 'claude')
+              appendNote(draft)
               setJustAdded(true)
               setOpen(false)
               setTimeout(() => setJustAdded(false), 2500)

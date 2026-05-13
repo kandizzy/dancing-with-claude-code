@@ -7,6 +7,7 @@ import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { Button } from '@/components/ui'
 import { ArrowUp } from 'lucide-react'
+import { getBehaviorRules, getNoteEntries } from '@/lib/levels/registry'
 import type { LevelDefinition } from '@/lib/levels/types'
 
 type Props = { level: LevelDefinition }
@@ -17,11 +18,11 @@ export function Level5Workspace({ level }: Props) {
   const { awardShape, isCompleted, claudeMd } = useLearnStore()
   const segments = useMemo<Segment[]>(() => {
     const out: Segment[] = []
-    claudeMd.behavior.forEach((rule, i) =>
+    getBehaviorRules(claudeMd).forEach((rule, i) =>
       out.push({ id: `b-${i}`, label: `Behavior rule #${i + 1}`, text: rule }),
     )
-    claudeMd.userEntries.forEach((entry, i) =>
-      out.push({ id: `e-${entry.id}`, label: `Pinned note #${i + 1}`, text: entry.text }),
+    getNoteEntries(claudeMd).forEach((text, i) =>
+      out.push({ id: `n-${i}`, label: `Note #${i + 1}`, text }),
     )
     return out
   }, [claudeMd])

@@ -5,18 +5,20 @@ import Link from 'next/link'
 import { Dancer } from '@/components/explore/Dancer'
 import { EasingShowcase } from '@/components/explore/EasingShowcase'
 import { SpinningShowcase } from '@/components/explore/SpinningShowcase'
+import { ShapesShowcase } from '@/components/explore/ShapesShowcase'
 import { cn } from '@/lib/utils'
 
-type Tab = 'dancer' | 'easing' | 'spinning'
+type Tab = 'shapes' | 'dancer' | 'easing' | 'spinning'
 
 const TABS: Array<{ key: Tab; label: string; hint: string }> = [
+  { key: 'shapes', label: 'Shapes', hint: 'home-page icons reimagined as ink studies' },
   { key: 'dancer', label: 'Dancer', hint: 'the figure assembled from earned shapes' },
   { key: 'easing', label: 'Easing studio', hint: 'how a phrase reads with different curves' },
   { key: 'spinning', label: 'Spinning', hint: 'phase-locked rates · snap · anchor choice' },
 ]
 
 export default function ExplorePage() {
-  const [tab, setTab] = useState<Tab>('dancer')
+  const [tab, setTab] = useState<Tab>('shapes')
 
   return (
     <div className="flex h-dvh flex-col bg-[var(--color-page)] text-[var(--color-text-primary)]">
@@ -72,6 +74,7 @@ export default function ExplorePage() {
 
       <main className="flex-1 overflow-y-auto p-8">
         <div className="mx-auto max-w-5xl">
+          {tab === 'shapes' && <ShapesShowcase />}
           {tab === 'dancer' && <Dancer />}
           {tab === 'easing' && <EasingShowcase />}
           {tab === 'spinning' && <SpinningShowcase />}

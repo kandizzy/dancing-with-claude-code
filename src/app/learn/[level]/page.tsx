@@ -1,7 +1,6 @@
 'use client'
 
 import { notFound, useParams } from 'next/navigation'
-import { useState } from 'react'
 import { getLevel } from '@/lib/levels/registry'
 import { LevelChat } from '@/components/learn/LevelChat'
 import { Level2Workspace } from '@/components/learn/Level2Workspace'
@@ -12,13 +11,12 @@ import { ClaudeMdAuthor } from '@/components/learn/ClaudeMdAuthor'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { OnboardingCard } from '@/components/learn/OnboardingCard'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
-import type { LevelDefinition, UserEntry } from '@/lib/levels/types'
+import type { LevelDefinition } from '@/lib/levels/types'
 
 export default function LevelPage() {
   const params = useParams<{ level: string }>()
   const levelId = Number(params.level)
   const level = getLevel(levelId)
-  const [matchedEntry, setMatchedEntry] = useState<UserEntry | null>(null)
 
   if (!level) {
     notFound()
@@ -32,44 +30,35 @@ export default function LevelPage() {
       <LearnHeader />
 
       {isFigure1 && (
-        <div className="flex items-start gap-4">
-          <OnboardingCard storageKey="education-labs:onboard-figure-1" className="flex-1">
-            <p className="m-0">
-              <strong className="text-text-primary font-semibold">
-                Claude reads a file called <code className="font-mono text-xs">CLAUDE.md</code>
-                {' '}before every reply.
-              </strong>{' '}
-              Here it is, on the left. Edit anything. Claude will see your edits on the next ask —
-              and the next reply that draws on what you wrote earns you the circle.
-            </p>
-          </OnboardingCard>
-          <WebcamPlayground className="w-[260px] shrink-0" />
-        </div>
+        <OnboardingCard storageKey="education-labs:onboard-figure-1">
+          <p className="m-0">
+            <strong className="text-text-primary font-semibold">
+              Claude reads a file called <code className="font-mono text-xs">CLAUDE.md</code>{' '}
+              before every reply.
+            </strong>{' '}
+            Here it is, on the left. Edit anything. Claude will see your edits on the next ask —
+            and the next reply that draws on what you wrote earns you the circle.
+          </p>
+        </OnboardingCard>
       )}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_minmax(0,_1.2fr)]">
-        <ClaudeMdAuthor highlightEntryId={matchedEntry?.id ?? null} className="min-h-0" />
+        <ClaudeMdAuthor className="min-h-0" />
         <div className="flex min-h-0 flex-col gap-3">
-          <Workspace level={level} onMatched={setMatchedEntry} />
+          {isFigure1 && <WebcamPlayground className="shrink-0" />}
+          <Workspace level={level} />
         </div>
       </div>
     </div>
   )
 }
 
-function Workspace({
-  level,
-  onMatched,
-}: {
-  level: LevelDefinition
-  onMatched: (entry: UserEntry | null) => void
-}) {
+function Workspace({ level }: { level: LevelDefinition }) {
   switch (level.id) {
     case 1:
       return (
         <LevelChat
           level={level}
-          onMatchedEntry={onMatched}
           suggestedPrompts={level.suggestedPrompts}
           className="min-h-0 flex-1"
         />

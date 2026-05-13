@@ -1,11 +1,9 @@
-import type { ClaudeMdState } from './levels/types'
-
 export type LevelMessage = { role: 'user' | 'assistant'; content: string }
 
 export async function streamLevelChat(
   levelId: number,
   history: LevelMessage[],
-  claudeMd: ClaudeMdState,
+  claudeMd: string,
   onDelta: (chunk: string) => void,
   options?: { model?: string; signal?: AbortSignal; extraSystem?: string },
 ): Promise<string> {

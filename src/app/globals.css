@@ -92,3 +92,49 @@ textarea {
 .scroll-area::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ============================================================
+   Markdown preview — applied inside `.md-preview` (MarkdownEditor)
+   ============================================================ */
+.md-preview h1,
+.md-preview h2,
+.md-preview h3 {
+  font-family: var(--font-serif);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0.75em 0 0.35em;
+}
+.md-preview h1 { font-size: 1.25rem; }
+.md-preview h2 { font-size: 1.05rem; }
+.md-preview h3 { font-size: 0.95rem; }
+.md-preview p { margin: 0.4em 0; }
+.md-preview ul { list-style: disc; padding-left: 1.25em; margin: 0.35em 0; }
+.md-preview ol { list-style: decimal; padding-left: 1.25em; margin: 0.35em 0; }
+.md-preview li { margin: 0.15em 0; }
+.md-preview code {
+  font-family: var(--font-mono);
+  background: var(--color-state-pill);
+  padding: 0.05em 0.3em;
+  border-radius: var(--radius-xs);
+  font-size: 0.92em;
+}
+.md-preview pre {
+  background: var(--color-state-pill);
+  padding: 0.75em 1em;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+.md-preview pre code { background: transparent; padding: 0; }
+.md-preview blockquote {
+  border-left: 2px solid var(--color-border-subtle);
+  padding-left: 0.85em;
+  color: var(--color-text-secondary);
+  margin: 0.5em 0;
+}
+.md-preview a { color: var(--color-accent-strong); text-decoration: underline; }
+.md-preview hr {
+  border: none;
+  border-top: 1px solid var(--color-border-subtle);
+  margin: 1em 0;
+}
