@@ -2,9 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
+import { ask } from '@/lib/ai/client'
 import { cn } from '@/lib/utils'
-import { FilePlus, Check, X } from 'lucide-react'
+import { FilePlus, Check, Loader2, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui'
+
+const POLISH_SYSTEM = `You are helping a designer write a note in their CLAUDE.md project-context file. The user has drafted some text. Refine it into a clean note suitable for the "## Notes" section.
+
+Constraints:
+- Short: 1–3 sentences total. Trim aggressively.
+- Imperative voice: "Prefer X." "Always do Y." "Cite the score before recommending." Not "I would like" or "I think."
+- Specific: keep concrete values, thresholds, conditions where the user mentioned them. Don't add invented numbers.
+- Self-contained: no references to "the previous reply" or "as I said earlier."
+- No bullet points unless multiple distinct rules are needed.
+
+Return ONLY the refined note text. No preamble, no explanation, no quotes wrapping it, no leading "##".`
 
 type PromoteButtonProps = {
   sourceText: string
@@ -19,6 +31,8 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [justAdded, setJustAdded] = useState(false)
+  const [polishing, setPolishing] = useState(false)
+  const [polishError, setPolishError] = useState<string | null>(null)
 
   // Escape closes the modal.
   useEffect(() => {
@@ -56,6 +70,25 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
     setOpen(false)
     setJustAdded(true)
     window.setTimeout(() => setJustAdded(false), 2500)
+  }
+
+  const onPolish = async () => {
+    if (!draft.trim() || polishing) return
+    setPolishing(true)
+    setPolishError(null)
+    try {
+      const result = await ask({
+        systemPrompt: POLISH_SYSTEM,
+        userPrompt: draft.trim(),
+      })
+      // Strip leading/trailing quote marks Claude sometimes wraps with despite the instruction.
+      const cleaned = result.text.trim().replace(/^["']+|["']+$/g, '')
+      setDraft(cleaned)
+    } catch (err) {
+      setPolishError((err as Error)?.message ?? 'Polish request failed')
+    } finally {
+      setPolishing(false)
+    }
   }
 
   return (
@@ -109,21 +142,46 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               autoFocus
-              className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[50vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)]"
+              disabled={polishing}
+              className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[50vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)] disabled:opacity-60"
             />
 
-            <div className="flex items-center justify-end gap-2">
+            {polishError && (
+              <p className="text-danger text-xs">Polish failed: {polishError}</p>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
+                onClick={onPolish}
+                disabled={!draft.trim() || polishing}
+                className="text-text-secondary hover:text-text-primary disabled:opacity-50 inline-flex items-center gap-1.5 text-xs"
+                title="Ask Claude to rewrite this into a tighter, imperative-voice CLAUDE.md note"
               >
-                Cancel
+                {polishing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3.5" />
+                )}
+                {polishing ? 'Polishing…' : 'Polish for CLAUDE.md'}
               </button>
-              <Button variant="primary" onClick={onSave} disabled={!draft.trim()}>
-                <FilePlus className="size-4" />
-                Add to CLAUDE.md
-              </Button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
+                >
+                  Cancel
+                </button>
+                <Button
+                  variant="primary"
+                  onClick={onSave}
+                  disabled={!draft.trim() || polishing}
+                >
+                  <FilePlus className="size-4" />
+                  Add to CLAUDE.md
+                </Button>
+              </div>
             </div>
           </div>
         </div>
