@@ -24,14 +24,25 @@ The web prototype demonstrates a pattern. The pattern's home is on the user's la
 - **Design choice worth noting:** the v1 web prototype's seed content is browser-CV-native (MediaPipe Tasks, detection shape, behavior rules about CV reasoning). It does *not* include the Pi/venv/Python content from the real classroom CLAUDE.md, because that context only makes sense once the user is on their machine. A v2 (local) iteration of this tool can carry over the venv/Pi/Python content as the seed.
 - **Honest no-key behavior:** when the server has no `ANTHROPIC_API_KEY`, the route returns a generic reply that intentionally won't echo any pinned entry, so the L1 gate fails honestly until a key is set.
 
-### L2 Triangle — Slash command discovery _(pending)_
+### L2 Triangle — Slash command discovery ✅ built (working)
+- **Web:** `Level2Workspace.tsx` adds a slash-command palette to the input. Typing `/` filters `LEVEL_2_COMMANDS` from `src/lib/levels/level-2.ts`; picking one stages its full prompt into the input where the user can edit before sending. The gate fires when the user sends a message whose text equals the staged prompt — proof they invoked a command rather than typed from scratch. The user's invocation appears tagged with `/command-name` above their message bubble.
+- **Desktop:** `.claude/commands/<name>.md` files in the repo. Type `/<name>` in `claude` to invoke. The repo can ship them; users discover them via tab-completion or the `/help` listing.
+- **Translation gap:** In the web prototype the palette is visible by typing `/`; in Claude Code the discovery happens via tab-complete and `/help`. The pedagogy is identical — *they exist; look*.
 
-### L3 Arc — Directive-writing _(pending)_
+### L3 Arc — Directive-writing ✅ built (working)
+- **Web:** `Level3Workspace.tsx` is a three-field form (Scope / Target / Action). Submission assembles a directive prompt and sends. The gate fires when all three fields are non-empty at submit time — the user demonstrated structured directive-writing.
+- **Desktop:** No special tooling — the same muscle expressed in prose. The pattern: name the scope (which area), name the target (which file or line range), name one specific action. Avoid open-ended chat.
+- **Translation gap:** None of consequence. The form is training wheels; on desktop, the user types the same three things in one prompt.
 
-### L4 Square — Tool-use visibility _(pending)_
-- Anticipated translation gap: web has to render fake/real tool-call cards; desktop already does. The pedagogy is identical — *don't auto-accept*.
+### L4 Square — Tool-use visibility ✅ built (working — simulated)
+- **Web:** `Level4Workspace.tsx` sends with `LEVEL_4_EXTRA_SYSTEM` instructing Claude to reply with a JSON tool proposal: `{ tool, params, reason }`. The workspace parses the JSON and renders a card with Accept / Reject buttons. The gate fires when the user clicks either — auto-accept is impossible because there is no default action.
+- **Desktop:** Claude Code already renders tool calls (Read/Edit/Bash/etc.) in the CLI and prompts y/n. Same loop. The muscle is to read the call before pressing y.
+- **Translation gap:** v1 web simulates tool-use via JSON convention rather than the real Anthropic `tool_use` content blocks. The teaching is identical; the under-the-hood mechanism differs. Worth upgrading to real tools when time permits.
 
-### L5 Composite — Scoped change _(pending)_
+### L5 Composite — Scoped change ✅ built (working)
+- **Web:** `Level5Workspace.tsx` reads the current CLAUDE.md state and presents the user's behavior rules + pinned notes as numbered "segments." The user picks exactly one, names the change, sends. The prompt instructs Claude to operate *only* on that segment. Gate fires on submission with a target selected.
+- **Desktop:** Git branches + file-scoped asks. "Modify `person_detector_alice.py`, leave `person_detector.py` alone." Same scoping discipline; the segment names map to real files / line ranges instead of CLAUDE.md entries.
+- **Translation gap:** The web prototype scopes within CLAUDE.md (which is where the prototype's "project" lives). On desktop, scoping is across the codebase. Same muscle, larger surface area.
 
 ## Open questions
 

@@ -5,9 +5,13 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { getLevel } from '@/lib/levels/registry'
 import { LevelChat } from '@/components/learn/LevelChat'
+import { Level2Workspace } from '@/components/learn/Level2Workspace'
+import { Level3Workspace } from '@/components/learn/Level3Workspace'
+import { Level4Workspace } from '@/components/learn/Level4Workspace'
+import { Level5Workspace } from '@/components/learn/Level5Workspace'
 import { ClaudeMdAuthor } from '@/components/learn/ClaudeMdAuthor'
 import { LearnHeader } from '@/components/learn/LearnHeader'
-import type { UserEntry } from '@/lib/levels/types'
+import type { LevelDefinition, UserEntry } from '@/lib/levels/types'
 import { ArrowLeft } from 'lucide-react'
 
 export default function LevelPage() {
@@ -47,13 +51,32 @@ export default function LevelPage() {
           <p className="text-text-primary font-medium">
             Task: <span className="text-text-secondary font-normal">{level.task}</span>
           </p>
-          <LevelChat
-            level={level}
-            onMatchedEntry={setMatchedEntry}
-            className="min-h-0 flex-1"
-          />
+          <Workspace level={level} onMatched={setMatchedEntry} />
         </div>
       </div>
     </div>
   )
+}
+
+function Workspace({
+  level,
+  onMatched,
+}: {
+  level: LevelDefinition
+  onMatched: (entry: UserEntry | null) => void
+}) {
+  switch (level.id) {
+    case 1:
+      return <LevelChat level={level} onMatchedEntry={onMatched} className="min-h-0 flex-1" />
+    case 2:
+      return <Level2Workspace level={level} />
+    case 3:
+      return <Level3Workspace level={level} />
+    case 4:
+      return <Level4Workspace level={level} />
+    case 5:
+      return <Level5Workspace level={level} />
+    default:
+      return null
+  }
 }

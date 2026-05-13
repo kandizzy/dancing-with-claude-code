@@ -11,10 +11,11 @@ type Body = {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
   claudeMd: ClaudeMdState
   model?: string
+  extraSystem?: string
 }
 
 export async function POST(req: Request) {
-  const { levelId, messages, claudeMd, model } = (await req.json()) as Body
+  const { levelId, messages, claudeMd, model, extraSystem } = (await req.json()) as Body
   const level = getLevel(levelId)
   if (!level) {
     return new Response(`Unknown level: ${levelId}`, { status: 400 })
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     return new Response('Missing CLAUDE.md state', { status: 400 })
   }
 
-  const systemPrompt = assembleSystemPrompt(claudeMd)
+  const systemPrompt = assembleSystemPrompt(claudeMd, extraSystem)
 
   if (!apiKey) {
     // No key configured. Return a Claude-shaped generic reply that intentionally does NOT

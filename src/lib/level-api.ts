@@ -7,7 +7,7 @@ export async function streamLevelChat(
   history: LevelMessage[],
   claudeMd: ClaudeMdState,
   onDelta: (chunk: string) => void,
-  options?: { model?: string; signal?: AbortSignal },
+  options?: { model?: string; signal?: AbortSignal; extraSystem?: string },
 ): Promise<string> {
   const res = await fetch('/api/level-chat', {
     method: 'POST',
@@ -17,6 +17,7 @@ export async function streamLevelChat(
       messages: history,
       claudeMd,
       model: options?.model,
+      extraSystem: options?.extraSystem,
     }),
     signal: options?.signal,
   })
