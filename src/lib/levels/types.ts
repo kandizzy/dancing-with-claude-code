@@ -9,17 +9,23 @@ export type LevelDefinition = {
   shape: ShapeKind
   title: string
   capability: string
-  // Short intro shown above the workspace.
   intro: string
-  // The directive the user is being asked to compose. Shown as guidance, not enforced.
   task: string
-  // System prompt bound to every Claude call inside this level.
-  systemPrompt: string
-  // Fingerprint tokens whose presence in Claude's response proves the level's capability was exercised.
-  // For L1, these only exist in the attached CLAUDE.md — finding any one proves Claude used the file.
-  gateFingerprints: string[]
-  // Copy shown on a non-matching response. Should nudge, not give the answer.
-  nudgeOnMiss: string
-  // Copy shown when the gate passes.
-  successCopy: string
+}
+
+// CLAUDE.md is live, user-mutable state. Built up as the user works.
+export type UserEntry = {
+  id: string
+  text: string
+  source: 'user' | 'claude'
+  promotedAt: number
+}
+
+export type ClaudeMdState = {
+  // Seeded project context — describes what the playground is. The user can read it; v1 makes it readonly.
+  stack: string
+  // Behavior rules for Claude. Seeded with defaults; user can add/remove/edit.
+  behavior: string[]
+  // Notes/recipes the user has pinned by promoting a Claude reply or writing their own. Empty at seed.
+  userEntries: UserEntry[]
 }

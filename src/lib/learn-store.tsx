@@ -9,18 +9,27 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { LevelId, ShapeKind } from './levels/types'
+import type { ClaudeMdState, LevelId, ShapeKind, UserEntry } from './levels/types'
+import { SEED_CLAUDE_MD } from './levels/level-1'
 
 type LearnState = {
   earnedShapes: ShapeKind[]
-  // For each completed level, the fingerprint that matched. Useful for highlighting in UI.
-  matchedFingerprints: Partial<Record<LevelId, string>>
+  // For each completed level, a snapshot of what triggered the gate. UI uses this to highlight.
+  matchedAt: Partial<Record<LevelId, string>>
+  claudeMd: ClaudeMdState
 }
 
 type LearnStore = LearnState & {
   isCompleted: (id: LevelId) => boolean
   isUnlocked: (id: LevelId) => boolean
-  awardShape: (id: LevelId, shape: ShapeKind, matchedFingerprint: string) => void
+  awardShape: (id: LevelId, shape: ShapeKind, evidence: string) => void
+  // CLAUDE.md authoring
+  promoteEntry: (text: string, source: 'user' | 'claude') => UserEntry
+  removeEntry: (id: string) => void
+  editEntry: (id: string, text: string) => void
+  addBehaviorRule: (rule: string) => void
+  removeBehaviorRule: (index: number) => void
+  editBehaviorRule: (index: number, rule: string) => void
   reset: () => void
 }
 
@@ -28,10 +37,17 @@ const STORAGE_KEY = 'education-labs:learn'
 
 const INITIAL: LearnState = {
   earnedShapes: [],
-  matchedFingerprints: {},
+  matchedAt: {},
+  claudeMd: SEED_CLAUDE_MD,
 }
 
 const LearnContext = createContext<LearnStore | null>(null)
+
+function freshId() {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2)
+}
 
 export function LearnProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LearnState>(INITIAL)
@@ -41,11 +57,16 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       try {
-        const parsed = JSON.parse(stored) as LearnState
-        if (parsed && Array.isArray(parsed.earnedShapes)) {
+        const parsed = JSON.parse(stored) as Partial<LearnState>
+        if (parsed) {
           setState({
-            earnedShapes: parsed.earnedShapes,
-            matchedFingerprints: parsed.matchedFingerprints ?? {},
+            earnedShapes: parsed.earnedShapes ?? [],
+            matchedAt: parsed.matchedAt ?? {},
+            claudeMd: {
+              stack: SEED_CLAUDE_MD.stack, // always re-seed from code; stack is readonly
+              behavior: parsed.claudeMd?.behavior ?? SEED_CLAUDE_MD.behavior,
+              userEntries: parsed.claudeMd?.userEntries ?? [],
+            },
           })
         }
       } catch {
@@ -60,8 +81,8 @@ export function LearnProvider({ children }: { children: ReactNode }) {
   }, [state, hydrated])
 
   const isCompleted = useCallback(
-    (id: LevelId) => state.matchedFingerprints[id] != null,
-    [state.matchedFingerprints],
+    (id: LevelId) => state.matchedAt[id] != null,
+    [state.matchedAt],
   )
 
   const isUnlocked = useCallback(
@@ -72,24 +93,113 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     [isCompleted],
   )
 
-  const awardShape = useCallback(
-    (id: LevelId, shape: ShapeKind, matchedFingerprint: string) => {
-      setState((prev) => {
-        if (prev.matchedFingerprints[id]) return prev // idempotent
-        return {
-          earnedShapes: [...prev.earnedShapes, shape],
-          matchedFingerprints: { ...prev.matchedFingerprints, [id]: matchedFingerprint },
-        }
-      })
-    },
-    [],
-  )
+  const awardShape = useCallback((id: LevelId, shape: ShapeKind, evidence: string) => {
+    setState((prev) => {
+      if (prev.matchedAt[id]) return prev
+      return {
+        ...prev,
+        earnedShapes: [...prev.earnedShapes, shape],
+        matchedAt: { ...prev.matchedAt, [id]: evidence },
+      }
+    })
+  }, [])
+
+  const promoteEntry = useCallback<LearnStore['promoteEntry']>((text, source) => {
+    const entry: UserEntry = {
+      id: freshId(),
+      text: text.trim(),
+      source,
+      promotedAt: Date.now(),
+    }
+    setState((prev) => ({
+      ...prev,
+      claudeMd: { ...prev.claudeMd, userEntries: [...prev.claudeMd.userEntries, entry] },
+    }))
+    return entry
+  }, [])
+
+  const removeEntry = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      claudeMd: {
+        ...prev.claudeMd,
+        userEntries: prev.claudeMd.userEntries.filter((e) => e.id !== id),
+      },
+    }))
+  }, [])
+
+  const editEntry = useCallback((id: string, text: string) => {
+    setState((prev) => ({
+      ...prev,
+      claudeMd: {
+        ...prev.claudeMd,
+        userEntries: prev.claudeMd.userEntries.map((e) =>
+          e.id === id ? { ...e, text: text.trim() } : e,
+        ),
+      },
+    }))
+  }, [])
+
+  const addBehaviorRule = useCallback((rule: string) => {
+    const trimmed = rule.trim()
+    if (!trimmed) return
+    setState((prev) => ({
+      ...prev,
+      claudeMd: { ...prev.claudeMd, behavior: [...prev.claudeMd.behavior, trimmed] },
+    }))
+  }, [])
+
+  const removeBehaviorRule = useCallback((index: number) => {
+    setState((prev) => ({
+      ...prev,
+      claudeMd: {
+        ...prev.claudeMd,
+        behavior: prev.claudeMd.behavior.filter((_, i) => i !== index),
+      },
+    }))
+  }, [])
+
+  const editBehaviorRule = useCallback((index: number, rule: string) => {
+    const trimmed = rule.trim()
+    if (!trimmed) return
+    setState((prev) => ({
+      ...prev,
+      claudeMd: {
+        ...prev.claudeMd,
+        behavior: prev.claudeMd.behavior.map((r, i) => (i === index ? trimmed : r)),
+      },
+    }))
+  }, [])
 
   const reset = useCallback(() => setState(INITIAL), [])
 
   const value = useMemo<LearnStore>(
-    () => ({ ...state, isCompleted, isUnlocked, awardShape, reset }),
-    [state, isCompleted, isUnlocked, awardShape, reset],
+    () => ({
+      ...state,
+      isCompleted,
+      isUnlocked,
+      awardShape,
+      promoteEntry,
+      removeEntry,
+      editEntry,
+      addBehaviorRule,
+      removeBehaviorRule,
+      editBehaviorRule,
+      reset,
+    }),
+    [
+      state,
+      isCompleted,
+      isUnlocked,
+      awardShape,
+      promoteEntry,
+      removeEntry,
+      editEntry,
+      addBehaviorRule,
+      removeBehaviorRule,
+      editBehaviorRule,
+      reset,
+    ],
   )
 
   return <LearnContext.Provider value={value}>{children}</LearnContext.Provider>

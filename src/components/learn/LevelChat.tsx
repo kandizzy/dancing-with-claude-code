@@ -1,33 +1,37 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { InputBar } from '@/components/chat/InputBar'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { MODELS, type Model } from '@/lib/api'
 import { streamLevelChat, type LevelMessage } from '@/lib/level-api'
-import { findGateMatch } from '@/lib/levels/registry'
-import type { LevelDefinition } from '@/lib/levels/types'
+import { findUserEntryMatch } from '@/lib/levels/registry'
+import type { LevelDefinition, UserEntry } from '@/lib/levels/types'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
 import { Check } from 'lucide-react'
+import { PromoteButton } from './PromoteButton'
 
 const HAIKU = MODELS.find((m) => m.id === 'claude-haiku-4-5') ?? MODELS[0]
 
 type LevelChatProps = {
   level: LevelDefinition
+  onMatchedEntry?: (entry: UserEntry | null) => void
   className?: string
 }
 
-type RenderedMessage = LevelMessage & { id: string; matchedFingerprint?: string | null }
+type RenderedMessage = LevelMessage & {
+  id: string
+  matchedEntry?: UserEntry | null
+}
 
-export function LevelChat({ level, className }: LevelChatProps) {
-  const { awardShape, isCompleted } = useLearnStore()
+export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) {
+  const { awardShape, isCompleted, claudeMd } = useLearnStore()
   const [messages, setMessages] = useState<RenderedMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [streamBuffer, setStreamBuffer] = useState('')
   const [model, setModel] = useState<Model>(HAIKU)
-  const [showHints, setShowHints] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const completed = isCompleted(level.id)
 
@@ -50,22 +54,24 @@ export function LevelChat({ level, className }: LevelChatProps) {
         const full = await streamLevelChat(
           level.id,
           nextHistory,
+          claudeMd,
           (delta) => {
             buffer += delta
             setStreamBuffer(buffer)
           },
           { model: model.id, signal: controller.signal },
         )
-        const matched = findGateMatch(full, level.gateFingerprints)
+        const matched = findUserEntryMatch(full, claudeMd.userEntries)
         const assistantMsg: RenderedMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: full,
-          matchedFingerprint: matched,
+          matchedEntry: matched,
         }
         setMessages((m) => [...m, assistantMsg])
+        onMatchedEntry?.(matched)
         if (matched && !completed) {
-          awardShape(level.id, level.shape, matched)
+          awardShape(level.id, level.shape, matched.text)
         }
       } catch (err) {
         if ((err as Error)?.name !== 'AbortError') {
@@ -77,7 +83,7 @@ export function LevelChat({ level, className }: LevelChatProps) {
         abortRef.current = null
       }
     },
-    [messages, level, awardShape, completed],
+    [messages, level, awardShape, completed, claudeMd, model, onMatchedEntry],
   )
 
   const handleStop = useCallback(() => {
@@ -85,8 +91,16 @@ export function LevelChat({ level, className }: LevelChatProps) {
   }, [])
 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
-  const showSuccess = completed && lastAssistant?.matchedFingerprint
-  const showNudge = !streaming && lastAssistant && !lastAssistant.matchedFingerprint && !completed
+  const showSuccess = completed && lastAssistant?.matchedEntry
+  const hasNoEntries = claudeMd.userEntries.length === 0
+  const showFirstAskNudge =
+    !streaming && lastAssistant && !lastAssistant.matchedEntry && hasNoEntries && !completed
+  const showFollowUpNudge =
+    !streaming &&
+    lastAssistant &&
+    !lastAssistant.matchedEntry &&
+    !hasNoEntries &&
+    !completed
 
   return (
     <div className={cn('flex h-full flex-col gap-4', className)}>
@@ -94,9 +108,8 @@ export function LevelChat({ level, className }: LevelChatProps) {
         {messages.length === 0 && (
           <ClaudeMessage>
             <ClaudeParagraph className="text-text-secondary italic">
-              Compose a directive in the box below. Claude has been started with this project's
-              CLAUDE.md attached — your task is to ask something that would only make sense
-              because of what's in that file.
+              Ask Claude anything about the playground. When the answer is worth keeping, pin it
+              into your CLAUDE.md. Then ask again and watch the next reply use it.
             </ClaudeParagraph>
           </ClaudeMessage>
         )}
@@ -105,11 +118,16 @@ export function LevelChat({ level, className }: LevelChatProps) {
           m.role === 'user' ? (
             <UserMessage key={m.id} text={m.content} />
           ) : (
-            <ClaudeMessage key={m.id}>
-              <ClaudeParagraph className="whitespace-pre-wrap">
-                {highlightFingerprint(m.content, m.matchedFingerprint)}
-              </ClaudeParagraph>
-            </ClaudeMessage>
+            <div key={m.id}>
+              <ClaudeMessage>
+                <ClaudeParagraph className="whitespace-pre-wrap">
+                  {highlightMatch(m.content, m.matchedEntry)}
+                </ClaudeParagraph>
+              </ClaudeMessage>
+              <div className="-mt-1 mb-3 flex items-center gap-3 pl-4">
+                <PromoteButton sourceText={m.content} />
+              </div>
+            </div>
           ),
         )}
 
@@ -126,28 +144,30 @@ export function LevelChat({ level, className }: LevelChatProps) {
             <Check className="size-4" />
             Circle earned
           </div>
-          <p className="text-text-secondary m-0">{level.successCopy}</p>
+          <p className="text-text-secondary m-0">
+            Claude just recited the note <em>you</em> pinned. That's CLAUDE.md doing its job — your
+            writing is now part of the project context Claude reads on every ask. Keep pinning as
+            you go; the file grows with your discernment.
+          </p>
         </div>
       )}
 
-      {showNudge && (
+      {showFirstAskNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
-          <p className="text-text-secondary m-0">{level.nudgeOnMiss}</p>
-          <button
-            type="button"
-            onClick={() => setShowHints((s) => !s)}
-            className="text-text-tertiary hover:text-text-primary mt-2 text-xs underline"
-          >
-            {showHints ? 'Hide examples' : 'Show example questions'}
-          </button>
-          {showHints && (
-            <ul className="text-text-secondary mt-2 list-disc space-y-1 pl-5 text-sm">
-              <li>"Which venv should I activate before running anything?"</li>
-              <li>"What hostnames do the Raspberry Pis use, and how do I connect?"</li>
-              <li>"What versions of depthai are pinned?"</li>
-              <li>"What flag should I run a detector with so other students see when the camera is free?"</li>
-            </ul>
-          )}
+          <p className="text-text-secondary m-0">
+            Notice the reply doesn't reflect anything specific to your project yet — your CLAUDE.md
+            has only the seeded stack and behavior rules. Try pinning something from this reply
+            (or writing your own note) and ask a similar question again.
+          </p>
+        </div>
+      )}
+
+      {showFollowUpNudge && (
+        <div className="border-border-subtle rounded-md border p-4 text-sm">
+          <p className="text-text-secondary m-0">
+            Claude didn't quote your pinned notes this time. Try asking something that depends on
+            one of them, or rewrite the note to be more specific.
+          </p>
         </div>
       )}
 
@@ -158,26 +178,42 @@ export function LevelChat({ level, className }: LevelChatProps) {
         isStreaming={streaming}
         onSend={handleSend}
         onStop={handleStop}
-        placeholder="Compose a directive for Claude…"
+        placeholder="Ask Claude about the playground…"
       />
     </div>
   )
 }
 
-// Wrap the matched substring in a highlight span. Case-insensitive find.
-function highlightFingerprint(text: string, fingerprint: string | null | undefined) {
-  if (!fingerprint) return text
-  const idx = text.toLowerCase().indexOf(fingerprint.toLowerCase())
+// Wrap a matched entry's text in a highlight span where it appears in the reply.
+// Falls back to the longest 4-word slice if the full entry isn't substring-present.
+function highlightMatch(text: string, matched: UserEntry | null | undefined) {
+  if (!matched) return text
+  const normEntry = matched.text.toLowerCase()
+  const normText = text.toLowerCase()
+  let idx = normText.indexOf(normEntry)
+  let len = matched.text.length
+  if (idx < 0) {
+    // Try 4-word slices.
+    const words = matched.text.split(/\s+/)
+    for (let i = 0; i + 4 <= words.length; i++) {
+      const slice = words.slice(i, i + 4).join(' ').toLowerCase()
+      const at = normText.indexOf(slice)
+      if (at >= 0) {
+        idx = at
+        len = slice.length
+        break
+      }
+    }
+  }
   if (idx < 0) return text
+
   const before = text.slice(0, idx)
-  const match = text.slice(idx, idx + fingerprint.length)
-  const after = text.slice(idx + fingerprint.length)
+  const match = text.slice(idx, idx + len)
+  const after = text.slice(idx + len)
   return (
     <>
       {before}
-      <mark className="rounded-xs bg-[color:var(--color-accent)]/20 px-0.5 font-mono">
-        {match}
-      </mark>
+      <mark className="rounded-xs bg-[color:var(--color-accent)]/25 px-0.5">{match}</mark>
       {after}
     </>
   )

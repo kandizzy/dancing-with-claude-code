@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { getLevel } from '@/lib/levels/registry'
+import { assembleSystemPrompt, getLevel } from '@/lib/levels/registry'
+import type { ClaudeMdState } from '@/lib/levels/types'
 
 export const runtime = 'edge'
 
@@ -8,21 +9,26 @@ const apiKey = process.env.ANTHROPIC_API_KEY
 type Body = {
   levelId: number
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  claudeMd: ClaudeMdState
   model?: string
 }
 
 export async function POST(req: Request) {
-  const { levelId, messages, model } = (await req.json()) as Body
+  const { levelId, messages, claudeMd, model } = (await req.json()) as Body
   const level = getLevel(levelId)
   if (!level) {
     return new Response(`Unknown level: ${levelId}`, { status: 400 })
   }
+  if (!claudeMd) {
+    return new Response('Missing CLAUDE.md state', { status: 400 })
+  }
+
+  const systemPrompt = assembleSystemPrompt(claudeMd)
 
   if (!apiKey) {
-    // No key configured. Return a Claude-shaped answer that is intentionally generic —
-    // it does NOT contain any of the level's fingerprints, so the level gate fails
-    // honestly and the user sees the nudge. To complete levels, set ANTHROPIC_API_KEY.
-    const generic = `I would normally read your project's CLAUDE.md to answer that with specifics — pinned versions, exact paths, hostnames — but the server here doesn't have an ANTHROPIC_API_KEY configured, so I can only give you a general reply.\n\nSet \`ANTHROPIC_API_KEY\` in your environment (or Vercel project settings) and ask again. Then I'll draw on the attached file directly.`
+    // No key configured. Return a Claude-shaped generic reply that intentionally does NOT
+    // echo any pinned user entry, so the L1 gate fails honestly until a key is set.
+    const generic = `I would normally read the project's CLAUDE.md and pinned notes to answer specifically — but the server here doesn't have an ANTHROPIC_API_KEY configured. Set it in your environment (or your Vercel project settings) and ask again.`
     return new Response(generic, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
     })
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
       const messageStream = client.messages.stream({
         model: model ?? 'claude-haiku-4-5',
         max_tokens: 1024,
-        system: level.systemPrompt,
+        system: systemPrompt,
         messages,
       })
 

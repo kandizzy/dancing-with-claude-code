@@ -1,15 +1,23 @@
+import type { ClaudeMdState } from './levels/types'
+
 export type LevelMessage = { role: 'user' | 'assistant'; content: string }
 
 export async function streamLevelChat(
   levelId: number,
   history: LevelMessage[],
+  claudeMd: ClaudeMdState,
   onDelta: (chunk: string) => void,
   options?: { model?: string; signal?: AbortSignal },
 ): Promise<string> {
   const res = await fetch('/api/level-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ levelId, messages: history, model: options?.model }),
+    body: JSON.stringify({
+      levelId,
+      messages: history,
+      claudeMd,
+      model: options?.model,
+    }),
     signal: options?.signal,
   })
 
