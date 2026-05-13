@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
-import { Pin, Check } from 'lucide-react'
+import { FilePlus, Check } from 'lucide-react'
 
 type PromoteButtonProps = {
   sourceText: string
@@ -11,18 +11,18 @@ type PromoteButtonProps = {
 }
 
 // Small affordance next to a Claude reply. Click to draft an entry pre-filled from the reply,
-// edit it, and pin into CLAUDE.md. The edit step is the user's authorship moment.
+// edit it, and add to CLAUDE.md. The edit step is the user's authorship moment.
 export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
   const { promoteEntry } = useLearnStore()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
-  const [justPinned, setJustPinned] = useState(false)
+  const [justAdded, setJustAdded] = useState(false)
 
-  if (justPinned) {
+  if (justAdded) {
     return (
       <div className={cn('text-text-tertiary flex items-center gap-1 text-xs', className)}>
         <Check className="size-3" />
-        Pinned to CLAUDE.md
+        Added to CLAUDE.md
       </div>
     )
   }
@@ -43,8 +43,8 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
           className,
         )}
       >
-        <Pin className="size-3" />
-        Pin to CLAUDE.md
+        <FilePlus className="size-3" />
+        Add to CLAUDE.md
       </button>
     )
   }
@@ -67,14 +67,14 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
           onClick={() => {
             if (draft.trim()) {
               promoteEntry(draft, 'claude')
-              setJustPinned(true)
+              setJustAdded(true)
               setOpen(false)
-              setTimeout(() => setJustPinned(false), 2500)
+              setTimeout(() => setJustAdded(false), 2500)
             }
           }}
           className="text-text-primary border-border-subtle hover:bg-state-hover rounded border px-2 py-0.5"
         >
-          Pin to CLAUDE.md
+          Add to CLAUDE.md
         </button>
         <button
           type="button"

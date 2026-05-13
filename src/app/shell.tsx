@@ -23,8 +23,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // The Dancing-with-Claude experience (root + per-figure routes) renders its own header and
   // progress UI; skip the chat sidebar there. The chat scaffold routes (/new, /chat, /projects)
-  // still get the original AppShell.
-  if (pathname === '/' || pathname.startsWith('/learn')) {
+  // still get the original AppShell. /explore is the SVG-animation sandbox and also runs
+  // outside the sidebar so the stage gets full width.
+  if (pathname === '/' || pathname.startsWith('/learn') || pathname.startsWith('/explore')) {
     return <div className="h-dvh">{children}</div>
   }
 

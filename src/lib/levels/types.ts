@@ -11,6 +11,8 @@ export type LevelDefinition = {
   capability: string
   intro: string
   task: string
+  // One-click first-asks shown in the empty chat state. Disappear after first send.
+  suggestedPrompts?: string[]
 }
 
 // CLAUDE.md is live, user-mutable state. Built up as the user works.

@@ -24,6 +24,7 @@ type LearnStore = LearnState & {
   isUnlocked: (id: LevelId) => boolean
   awardShape: (id: LevelId, shape: ShapeKind, evidence: string) => void
   // CLAUDE.md authoring
+  setStack: (text: string) => void
   promoteEntry: (text: string, source: 'user' | 'claude') => UserEntry
   removeEntry: (id: string) => void
   editEntry: (id: string, text: string) => void
@@ -63,7 +64,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
             earnedShapes: parsed.earnedShapes ?? [],
             matchedAt: parsed.matchedAt ?? {},
             claudeMd: {
-              stack: SEED_CLAUDE_MD.stack, // always re-seed from code; stack is readonly
+              stack: parsed.claudeMd?.stack ?? SEED_CLAUDE_MD.stack,
               behavior: parsed.claudeMd?.behavior ?? SEED_CLAUDE_MD.behavior,
               userEntries: parsed.claudeMd?.userEntries ?? [],
             },
@@ -102,6 +103,15 @@ export function LearnProvider({ children }: { children: ReactNode }) {
         matchedAt: { ...prev.matchedAt, [id]: evidence },
       }
     })
+  }, [])
+
+  const setStack = useCallback((text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setState((prev) => ({
+      ...prev,
+      claudeMd: { ...prev.claudeMd, stack: trimmed },
+    }))
   }, [])
 
   const promoteEntry = useCallback<LearnStore['promoteEntry']>((text, source) => {
@@ -179,6 +189,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       isCompleted,
       isUnlocked,
       awardShape,
+      setStack,
       promoteEntry,
       removeEntry,
       editEntry,
@@ -192,6 +203,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       isCompleted,
       isUnlocked,
       awardShape,
+      setStack,
       promoteEntry,
       removeEntry,
       editEntry,

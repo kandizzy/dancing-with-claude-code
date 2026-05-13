@@ -19,6 +19,11 @@ type LevelChatProps = {
   level: LevelDefinition
   onMatchedEntry?: (entry: UserEntry | null) => void
   className?: string
+  // Optional one-click prompts shown above the input when the chat is empty.
+  // Disappear after the first send.
+  suggestedPrompts?: string[]
+  // Override the empty-state framing line.
+  emptyHint?: string
 }
 
 type RenderedMessage = LevelMessage & {
@@ -26,7 +31,13 @@ type RenderedMessage = LevelMessage & {
   matchedEntry?: UserEntry | null
 }
 
-export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) {
+export function LevelChat({
+  level,
+  onMatchedEntry,
+  className,
+  suggestedPrompts,
+  emptyHint,
+}: LevelChatProps) {
   const { awardShape, isCompleted, claudeMd } = useLearnStore()
   const [messages, setMessages] = useState<RenderedMessage[]>([])
   const [streaming, setStreaming] = useState(false)
@@ -93,6 +104,7 @@ export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
   const showSuccess = completed && lastAssistant?.matchedEntry
   const hasNoEntries = claudeMd.userEntries.length === 0
+  const isEmpty = messages.length === 0
   const showFirstAskNudge =
     !streaming && lastAssistant && !lastAssistant.matchedEntry && hasNoEntries && !completed
   const showFollowUpNudge =
@@ -101,15 +113,17 @@ export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) 
     !lastAssistant.matchedEntry &&
     !hasNoEntries &&
     !completed
+  const showChips =
+    isEmpty && !streaming && suggestedPrompts && suggestedPrompts.length > 0
 
   return (
     <div className={cn('flex h-full flex-col gap-4', className)}>
       <div className="scroll-area flex-1 overflow-y-auto pr-2">
-        {messages.length === 0 && (
+        {isEmpty && (
           <ClaudeMessage>
             <ClaudeParagraph className="text-text-secondary italic">
-              Ask Claude anything about the playground. When the answer is worth keeping, pin it
-              into your CLAUDE.md. Then ask again and watch the next reply use it.
+              {emptyHint ??
+                'Ask about the playground. When Claude says something worth keeping, add it to CLAUDE.md and ask again — the next reply will use it.'}
             </ClaudeParagraph>
           </ClaudeMessage>
         )}
@@ -145,9 +159,8 @@ export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) 
             Circle earned
           </div>
           <p className="text-text-secondary m-0">
-            Claude just recited the note <em>you</em> pinned. That's CLAUDE.md doing its job — your
-            writing is now part of the project context Claude reads on every ask. Keep pinning as
-            you go; the file grows with your discernment.
+            Claude just used what <em>you</em> wrote into CLAUDE.md. Your writing is now part of
+            the project context Claude reads on every ask. Keep adding as you go.
           </p>
         </div>
       )}
@@ -156,8 +169,8 @@ export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) 
         <div className="border-border-subtle rounded-md border p-4 text-sm">
           <p className="text-text-secondary m-0">
             Notice the reply doesn't reflect anything specific to your project yet — your CLAUDE.md
-            has only the seeded stack and behavior rules. Try pinning something from this reply
-            (or writing your own note) and ask a similar question again.
+            only has the seed content. Try adding something to it from this reply (or write your
+            own note in the file), then ask a similar question again.
           </p>
         </div>
       )}
@@ -165,9 +178,24 @@ export function LevelChat({ level, onMatchedEntry, className }: LevelChatProps) 
       {showFollowUpNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
           <p className="text-text-secondary m-0">
-            Claude didn't quote your pinned notes this time. Try asking something that depends on
-            one of them, or rewrite the note to be more specific.
+            Claude didn't quote your notes this time. Try asking something that depends on one of
+            them, or rewrite a note to be more specific.
           </p>
+        </div>
+      )}
+
+      {showChips && (
+        <div className="flex flex-wrap gap-2">
+          {suggestedPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => handleSend(prompt)}
+              className="text-text-secondary border-border-subtle hover:bg-state-hover hover:text-text-primary rounded-full border px-3 py-1 text-xs"
+            >
+              {prompt}
+            </button>
+          ))}
         </div>
       )}
 
