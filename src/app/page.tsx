@@ -5,7 +5,6 @@ import { LEVELS } from '@/lib/levels/registry'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
-import { ClaudeMdDrawer } from '@/components/learn/ClaudeMdDrawer'
 import { ResetProgressButton } from '@/components/learn/ResetProgressButton'
 import { useLearnStore } from '@/lib/learn-store'
 import { ArrowRight } from 'lucide-react'
@@ -26,8 +25,6 @@ export default function Home() {
   return (
     <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-5 overflow-hidden px-6 py-6">
       <LearnHeader />
-
-      <ClaudeMdDrawer />
 
       <p className="text-text-secondary max-w-3xl text-sm leading-relaxed">
         A five-figure choreography for learning to direct Claude Code. The playground is the
