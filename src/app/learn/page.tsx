@@ -3,6 +3,7 @@ import { LEVELS } from '@/lib/levels/registry'
 import { ShapeTray } from '@/components/learn/ShapeTray'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
+import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
 import type { LevelId, ShapeKind } from '@/lib/levels/types'
 
 const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
@@ -33,43 +34,58 @@ export default function LearnLanding() {
           asynchronous — your score persists across them, and you can revisit any figure at any
           time.
         </p>
+      </section>
 
-        <div className="border-border-soft mt-8 flex items-center gap-4 rounded-lg border p-4">
+      <section>
+        <WebcamPlayground />
+        <p className="text-text-tertiary mt-2 text-xs italic">
+          The playground is the stage. Detections are decoration; what you're learning is how to
+          direct Claude about what's on it.
+        </p>
+      </section>
+
+      <div className="my-2 flex items-center gap-3">
+        <div className="border-border-soft flex-1 border-t" />
+        <span className="font-script text-[color:var(--color-accent)] text-xl">Pause —</span>
+        <div className="border-border-soft flex-1 border-t" />
+      </div>
+
+      <section>
+        <div className="border-border-soft mb-6 flex items-center gap-4 rounded-lg border p-4">
           <ShapeTray />
           <p className="text-text-tertiary ml-auto text-xs">Progress saved in this browser.</p>
         </div>
-      </section>
 
-      <section className="flex flex-col gap-3">
-        {levels.map((id) => {
-          const def = LEVELS[id]
-          return (
-            <div
-              key={id}
-              className="border-border-soft flex items-center gap-4 rounded-lg border p-4"
-            >
-              <Shape kind={LEVEL_SHAPES[id]} size={40} earned={false} className="shrink-0" />
-              <div className="flex-1">
-                <div className="text-text-tertiary font-mono text-xs uppercase tracking-wider">
-                  Figure {id}
-                </div>
-                <div className="text-text-primary mt-0.5 font-medium">{def.title}</div>
-                <div className="text-text-tertiary mt-0.5 text-sm">{def.capability}</div>
-              </div>
-              <Link
-                href={`/learn/${id}`}
-                className="text-text-primary border-border-subtle hover:bg-state-hover rounded-md border px-3 py-1.5 text-sm"
+        <div className="flex flex-col gap-3">
+          {levels.map((id) => {
+            const def = LEVELS[id]
+            return (
+              <div
+                key={id}
+                className="border-border-soft flex items-center gap-4 rounded-lg border p-4"
               >
-                Begin
-              </Link>
-            </div>
-          )
-        })}
+                <Shape kind={LEVEL_SHAPES[id]} size={40} earned={false} className="shrink-0" />
+                <div className="flex-1">
+                  <div className="font-script text-[color:var(--color-accent)] text-base leading-none">
+                    Figure {id}
+                  </div>
+                  <div className="text-text-primary mt-1 font-medium">{def.title}</div>
+                  <div className="text-text-tertiary mt-0.5 text-sm">{def.capability}</div>
+                </div>
+                <Link
+                  href={`/learn/${id}`}
+                  className="text-text-primary border-border-subtle hover:bg-state-hover rounded-md border px-3 py-1.5 text-sm"
+                >
+                  Begin
+                </Link>
+              </div>
+            )
+          })}
+        </div>
       </section>
 
-      <footer className="text-text-tertiary pt-2 text-xs italic">
-        Visual language adapted from Oskar Schlemmer's Bauhaus dances (1922–1929) — figures
-        constructed of circle, triangle, arc, square, and their composite.
+      <footer className="font-script text-text-tertiary pt-2 text-base italic">
+        After Oskar Schlemmer · Bauhaus dances, 1922–1929
       </footer>
     </div>
   )

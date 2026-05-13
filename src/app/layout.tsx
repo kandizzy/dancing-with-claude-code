@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Caveat } from 'next/font/google'
 import { ChatProvider } from '@/lib/chat-store'
 import { LearnProvider } from '@/lib/learn-store'
 import { AppShell } from './shell'
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+const caveat = Caveat({
+  variable: '--font-caveat',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+})
+
 export const metadata: Metadata = {
   title: 'Dancing with Claude',
   description:
@@ -28,7 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} font-sans antialiased`}
+      >
         <ChatProvider>
           <LearnProvider>
             <AppShell>{children}</AppShell>

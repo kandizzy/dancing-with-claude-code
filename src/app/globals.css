@@ -4,10 +4,11 @@
    Design tokens — mapped to Tailwind v4 @theme
    ============================================================ */
 @theme {
-  /* Fonts — Geist from next/font, plus a system serif stack */
+  /* Fonts — Geist from next/font, plus a system serif stack and Caveat for script accents */
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', serif;
   --font-mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  --font-script: var(--font-caveat), 'Caveat', cursive;
 
   /* Colors */
   --color-page: #faf9f5;
@@ -18,8 +19,14 @@
   --color-text-secondary: rgb(61 61 58);
   --color-text-tertiary: rgb(115 114 108);
 
-  --color-accent: rgb(217 119 87);
-  --color-accent-strong: rgb(198 97 63);
+  /* Bauhaus primaries (Schlemmer). Used sparingly. */
+  --color-accent: rgb(200 40 30);            /* Bauhaus red */
+  --color-accent-strong: rgb(170 30 22);     /* deeper red */
+  --color-secondary: rgb(28 56 118);         /* royal blue */
+  --color-secondary-strong: rgb(20 40 92);
+  --color-tertiary: rgb(230 180 38);         /* ochre yellow */
+  --color-tertiary-strong: rgb(196 150 28);
+  --color-stage: rgb(18 18 18);              /* near-black "stage" ground */
   --color-danger: rgb(153 27 27);
 
   --color-border-subtle: rgb(31 30 29 / 0.15);
