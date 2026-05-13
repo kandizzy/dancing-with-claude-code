@@ -53,6 +53,7 @@ export default function Home() {
                   kind={LEVEL_SHAPES[id]}
                   size={32}
                   earned={isCompleted(id)}
+                  animate="hover"
                   className="shrink-0"
                 />
                 <div className="text-text-primary min-w-0 flex-1 truncate text-sm font-medium">
