@@ -7,18 +7,10 @@ import { MarkdownEditor } from './MarkdownEditor'
 import type { ComponentProps } from 'react'
 
 type ClaudeMdAuthorProps = ComponentProps<'div'> & {
-  /** Render textarea + preview stacked vertically instead of side-by-side. */
-  stacked?: boolean
-  /** Rows to size the editor textarea (and preview max-height). */
   rows?: number
 }
 
-export function ClaudeMdAuthor({
-  className,
-  stacked = false,
-  rows = 18,
-  ...props
-}: ClaudeMdAuthorProps) {
+export function ClaudeMdAuthor({ className, rows = 16, ...props }: ClaudeMdAuthorProps) {
   const { claudeMd, setClaudeMd } = useLearnStore()
 
   return (
@@ -42,7 +34,6 @@ export function ClaudeMdAuthor({
           value={claudeMd}
           onChange={setClaudeMd}
           rows={rows}
-          stacked={stacked}
           ariaLabel="CLAUDE.md markdown editor"
         />
       </div>

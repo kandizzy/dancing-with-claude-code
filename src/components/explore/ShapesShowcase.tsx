@@ -47,6 +47,8 @@ const SHAPES: ShapeCfg[] = [
 ]
 
 const WASH_ID = (i: number) => `shape-wash-${i}`
+const FILL_ID = (i: number) => `shape-fill-${i}`
+const FILL_ALT_ID = (i: number) => `shape-fill-alt-${i}`
 
 export function ShapesShowcase() {
   const refs = useRef<Array<SVGGElement | null>>([])
@@ -137,17 +139,30 @@ export function ShapesShowcase() {
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Animated shape mockups">
         <defs>
           {SHAPES.map((s, i) => {
-            const startStop =
-              s.tone === 'stage'
-                ? { color: 'var(--color-stage)', a0: 0.18, a1: 0.06 }
-                : s.tone === 'mixed'
-                  ? { color: 'var(--color-accent)', a0: 0.18, a1: 0 }
-                  : { color: toneVar(s.tone), a0: 0.22, a1: 0 }
+            // Wash: faint and ambient, like a hint of stage light. Echoes
+            // the spinning page where each cell glows softly in its tone.
+            const washColor = s.tone === 'mixed' ? 'var(--color-accent)' : toneVar(s.tone)
+            // Shape fill: a linear gradient from a very light top to a
+            // slightly stronger bottom — the dimensional-but-airy treatment
+            // visible on the spinning page's hexagon.
+            const fillColor = s.tone === 'mixed' ? 'var(--color-accent)' : toneVar(s.tone)
+            const altColor = s.tone === 'mixed' ? 'var(--color-secondary)' : fillColor
             return (
-              <radialGradient key={s.kind} id={WASH_ID(i)} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={startStop.color} stopOpacity={startStop.a0} />
-                <stop offset="100%" stopColor={startStop.color} stopOpacity={startStop.a1} />
-              </radialGradient>
+              <g key={s.kind}>
+                <radialGradient id={WASH_ID(i)} cx="50%" cy="50%" r="55%">
+                  <stop offset="0%" stopColor={washColor} stopOpacity={0.13} />
+                  <stop offset="60%" stopColor={washColor} stopOpacity={0.06} />
+                  <stop offset="100%" stopColor={washColor} stopOpacity={0} />
+                </radialGradient>
+                <linearGradient id={FILL_ID(i)} x1="50%" y1="0%" x2="50%" y2="100%">
+                  <stop offset="0%" stopColor={fillColor} stopOpacity={0.08} />
+                  <stop offset="100%" stopColor={fillColor} stopOpacity={0.22} />
+                </linearGradient>
+                <linearGradient id={FILL_ALT_ID(i)} x1="50%" y1="0%" x2="50%" y2="100%">
+                  <stop offset="0%" stopColor={altColor} stopOpacity={0.08} />
+                  <stop offset="100%" stopColor={altColor} stopOpacity={0.22} />
+                </linearGradient>
+              </g>
             )
           })}
           <filter id="shape-edge" x="-3%" y="-3%" width="106%" height="106%">
@@ -184,8 +199,9 @@ export function ShapesShowcase() {
               >
                 fig. {i + 1}
               </text>
-              {/* Watercolor wash centered in cell */}
-              <circle cx={cellCx} cy={cellCy} r={CELL / 2 - 12} fill={`url(#${WASH_ID(i)})`} />
+              {/* Watercolor wash — larger and more diffuse than the shape
+                  so it reads as ambient light rather than a halo */}
+              <circle cx={cellCx} cy={cellCy} r={CELL / 2 + 8} fill={`url(#${WASH_ID(i)})`} />
 
               {/* Shape group — placed at cell, scaled from 0..48 to fit */}
               <g
@@ -198,8 +214,7 @@ export function ShapesShowcase() {
                       cx={CENTER_48}
                       cy={CENTER_48}
                       r={18}
-                      fill={toneVar('accent')}
-                      fillOpacity={0.28}
+                      fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
                       strokeWidth={0.9}
                     />
@@ -207,8 +222,7 @@ export function ShapesShowcase() {
                   {s.kind === 'triangle' && (
                     <polygon
                       points="24,6 44,42 4,42"
-                      fill={toneVar('secondary')}
-                      fillOpacity={0.22}
+                      fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
                       strokeWidth={0.9}
                       strokeLinejoin="round"
@@ -242,8 +256,7 @@ export function ShapesShowcase() {
                       y={8}
                       width={32}
                       height={32}
-                      fill={INK}
-                      fillOpacity={0.78}
+                      fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
                       strokeWidth={0.9}
                     />
@@ -255,8 +268,7 @@ export function ShapesShowcase() {
                           cx={16}
                           cy={16}
                           r={10}
-                          fill={toneVar('accent')}
-                          fillOpacity={0.32}
+                          fill={`url(#${FILL_ID(i)})`}
                           stroke={INK}
                           strokeWidth={0.9}
                         />
@@ -267,8 +279,7 @@ export function ShapesShowcase() {
                           y={22}
                           width={20}
                           height={20}
-                          fill={toneVar('secondary')}
-                          fillOpacity={0.22}
+                          fill={`url(#${FILL_ALT_ID(i)})`}
                           stroke={INK}
                           strokeWidth={0.9}
                         />
