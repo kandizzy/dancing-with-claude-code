@@ -21,7 +21,7 @@ type View = 'preview' | 'markdown' | 'edit'
 export function MarkdownEditor({
   value,
   onChange,
-  rows = 16,
+  rows = 28,
   placeholder,
   ariaLabel,
   className,
@@ -82,7 +82,7 @@ export function MarkdownEditor({
           placeholder={placeholder}
           spellCheck
           autoFocus
-          className="text-text-primary border-border-subtle bg-page placeholder:text-text-tertiary w-full resize-y rounded-md border p-3 font-mono text-[12px] leading-[1.55] outline-none focus:border-[color:var(--color-accent-strong)]"
+          className="text-text-primary border-border-subtle bg-page placeholder:text-text-tertiary min-h-[60vh] w-full resize-y rounded-md border p-3 font-mono text-[12px] leading-[1.55] outline-none focus:border-[color:var(--color-accent-strong)]"
         />
       )}
     </div>

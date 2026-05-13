@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { Stage } from './Stage'
-import { useRafLoop, easeInOutCubic } from '@/lib/anim'
+import { useRafLoop, easeInOutCubic, lerpPoints, pointsToString } from '@/lib/anim'
 
 // 5 cells, each holding one earned shape rendered as a thin ink line drawing
 // over a soft watercolor wash in the shape's tone. Same viewBox 0..48 as
@@ -23,9 +23,22 @@ const CENTER_48 = 24
 
 // Phrase lengths chosen so no two shapes lock into the same rhythm.
 const CIRCLE_BREATH_MS = 3600
-const TRIANGLE_SNAP_MS = 1900 // 1300 hold + 600 snap, 6 steps × 60°
-const TRIANGLE_HOLD_MS = 1300
-const TRIANGLE_DUR_MS = TRIANGLE_SNAP_MS - TRIANGLE_HOLD_MS
+const TRIANGLE_FRAME_MS = 1800 // 1200 hold + 600 morph
+const TRIANGLE_HOLD_MS = 1200
+const TRIANGLE_MORPH_MS = TRIANGLE_FRAME_MS - TRIANGLE_HOLD_MS
+
+// Five plausible triangle poses. Each is recognizably "apex up" but with
+// vertices nudged so the shape looks like it's testing slightly different
+// stances — "discovering" via shape, not orientation. Order matters:
+// every target is [apex, base-right, base-left] so lerpPoints interpolates
+// vertex-to-vertex consistently.
+const TRIANGLE_TARGETS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+  [[24, 6], [44, 42], [4, 42]], // canonical
+  [[27, 8], [45, 41], [5, 43]], // lean right + base settling
+  [[24, 4], [46, 42], [2, 42]], // tall + wider base
+  [[21, 8], [43, 43], [3, 41]], // lean left + tilted base
+  [[24, 10], [45, 40], [3, 40]], // squat + base lifted
+]
 const ARC_TURN_MS = 7600
 const SQUARE_TILT_MS = 4600
 const COMPOSITE_ORBIT_MS = 4400
@@ -52,6 +65,7 @@ const FILL_ALT_ID = (i: number) => `shape-fill-alt-${i}`
 
 export function ShapesShowcase() {
   const refs = useRef<Array<SVGGElement | null>>([])
+  const triPolyRef = useRef<SVGPolygonElement | null>(null)
   const compRefs = useRef<{
     primary: SVGGElement | null
     secondary: SVGGElement | null
@@ -66,22 +80,24 @@ export function ShapesShowcase() {
       `translate(${CENTER_48 * (1 - breath)} ${CENTER_48 * (1 - breath)}) scale(${breath.toFixed(3)})`,
     )
 
-    // Triangle — Schlemmer grid choreography: hold a pose, snap 60°, hold.
-    const slot = elapsed % TRIANGLE_SNAP_MS
-    const stepIdx = Math.floor(elapsed / TRIANGLE_SNAP_MS) % 6
-    const fromAngle = stepIdx * 60
-    const toAngle = (stepIdx + 1) * 60
-    let triAngle: number
+    // Triangle — vertex morphing between five plausible poses, much like
+    // the radar cycles between score datasets. Each pose holds, then
+    // interpolates vertex-to-vertex to the next via easeInOutCubic.
+    const slot = elapsed % TRIANGLE_FRAME_MS
+    const frameIdx = Math.floor(elapsed / TRIANGLE_FRAME_MS) % TRIANGLE_TARGETS.length
+    const nextIdx = (frameIdx + 1) % TRIANGLE_TARGETS.length
+    let pts: ReadonlyArray<readonly [number, number]>
     if (slot >= TRIANGLE_HOLD_MS) {
-      const local = (slot - TRIANGLE_HOLD_MS) / TRIANGLE_DUR_MS
-      triAngle = fromAngle + easeInOutCubic(Math.min(local, 1)) * (toAngle - fromAngle)
+      const local = (slot - TRIANGLE_HOLD_MS) / TRIANGLE_MORPH_MS
+      pts = lerpPoints(
+        TRIANGLE_TARGETS[frameIdx],
+        TRIANGLE_TARGETS[nextIdx],
+        easeInOutCubic(Math.min(local, 1)),
+      )
     } else {
-      triAngle = fromAngle
+      pts = TRIANGLE_TARGETS[frameIdx]
     }
-    refs.current[1]?.setAttribute(
-      'transform',
-      `rotate(${triAngle.toFixed(2)} ${CENTER_48} ${CENTER_48 + 6})`,
-    )
+    triPolyRef.current?.setAttribute('points', pointsToString(pts))
 
     // Arc — slow rotation around its visual center. Always reads as an arc,
     // just pointing in a different direction at any given moment.
@@ -222,6 +238,7 @@ export function ShapesShowcase() {
                   )}
                   {s.kind === 'triangle' && (
                     <polygon
+                      ref={triPolyRef}
                       points="24,6 44,42 4,42"
                       fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
