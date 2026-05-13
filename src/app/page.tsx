@@ -5,6 +5,7 @@ import { LEVELS } from '@/lib/levels/registry'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
+import { ResetProgressButton } from '@/components/learn/ResetProgressButton'
 import { useLearnStore } from '@/lib/learn-store'
 import { ArrowRight } from 'lucide-react'
 import type { LevelId, ShapeKind } from '@/lib/levels/types'
@@ -66,8 +67,11 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="font-script text-text-tertiary text-sm italic">
-        After Oskar Schlemmer · Bauhaus dances, 1922–1929
+      <footer className="flex items-center justify-between gap-4">
+        <span className="font-script text-text-tertiary text-sm italic">
+          After Oskar Schlemmer · Bauhaus dances, 1922–1929
+        </span>
+        <ResetProgressButton />
       </footer>
     </div>
   )
