@@ -9,8 +9,4 @@ export type LevelDefinition = {
   shape: ShapeKind
   title: string
   capability: string
-  intro: string
-  task: string
-  // One-click first-asks shown in the empty chat state. Disappear after first send.
-  suggestedPrompts?: string[]
 }
