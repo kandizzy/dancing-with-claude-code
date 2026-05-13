@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { readFile, readdir } from 'node:fs/promises'
+import path from 'node:path'
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 4096
@@ -12,14 +14,16 @@ export class ClaudeApiError extends Error {
 
 /**
  * Call Claude via the Anthropic SDK. Server-side only. Used in API mode (deployed
- * Vercel preview) where we can't spawn the CLI. No tool-use, no file edits — the
- * caller's system prompt should embed the contents of CLAUDE.md so Claude has
- * project context.
+ * Vercel preview) where we can't spawn the CLI.
+ *
+ * Because API mode has no filesystem access, this bridge reads ./CLAUDE.md and
+ * ./.claude/commands/*.md server-side and embeds them in the system prompt so the
+ * API mode replies are grounded in the same project context the CLI sees natively.
  */
 export async function claudeApi(
   systemPrompt: string,
   userPrompt: string,
-  options: { model?: string } = {},
+  options: { model?: string; cwd?: string } = {},
 ): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -29,15 +33,18 @@ export async function claudeApi(
   }
   const client = new Anthropic({ apiKey })
 
+  const cwd = options.cwd ?? process.cwd()
+  const context = await loadProjectContext(cwd)
+  const fullSystem = `${context}\n\n${systemPrompt}`.trim()
+
   try {
     const result = await client.messages.create({
       model: options.model ?? DEFAULT_MODEL,
       max_tokens: MAX_TOKENS,
-      system: systemPrompt,
+      system: fullSystem,
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    // Concatenate any text blocks in the response.
     const text = result.content
       .filter((block) => block.type === 'text')
       .map((block) => (block as { type: 'text'; text: string }).text)
@@ -53,4 +60,33 @@ export async function claudeApi(
       err,
     )
   }
+}
+
+// Mirror what `claude` sees natively from cwd: CLAUDE.md and any .claude/commands/*.md.
+// Embedded between markers so the model knows where the project context ends.
+async function loadProjectContext(cwd: string): Promise<string> {
+  const parts: string[] = []
+  try {
+    const md = await readFile(path.join(cwd, 'CLAUDE.md'), 'utf8')
+    parts.push(`---- BEGIN CLAUDE.md ----\n${md.trim()}\n---- END CLAUDE.md ----`)
+  } catch {
+    /* no CLAUDE.md — that's fine */
+  }
+  try {
+    const dir = path.join(cwd, '.claude', 'commands')
+    const entries = await readdir(dir)
+    const cmds: string[] = []
+    for (const entry of entries) {
+      if (!entry.endsWith('.md')) continue
+      const raw = await readFile(path.join(dir, entry), 'utf8')
+      const name = entry.replace(/\.md$/, '')
+      cmds.push(`/${name}\n${raw.trim()}`)
+    }
+    if (cmds.length > 0) {
+      parts.push(`---- BEGIN slash commands ----\n${cmds.join('\n\n')}\n---- END slash commands ----`)
+    }
+  } catch {
+    /* no commands dir — that's fine */
+  }
+  return parts.join('\n\n')
 }

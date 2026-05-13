@@ -31,7 +31,10 @@ export async function callAi(input: AiCallInput): Promise<AiCallResult> {
       return { text, mode: 'cli' }
     }
     case 'api': {
-      const text = await claudeApi(input.systemPrompt, input.userPrompt, { model: input.model })
+      const text = await claudeApi(input.systemPrompt, input.userPrompt, {
+        model: input.model,
+        cwd: input.cwd,
+      })
       return { text, mode: 'api' }
     }
   }

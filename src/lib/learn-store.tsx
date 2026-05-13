@@ -12,6 +12,7 @@ import {
 import type { LevelId, ShapeKind } from './levels/types'
 import { SEED_CLAUDE_MD } from './levels/level-1'
 import { appendNoteToMarkdown } from './levels/registry'
+import { writeClaudeMd } from './ai/client'
 
 type LearnState = {
   earnedShapes: ShapeKind[]
@@ -97,6 +98,19 @@ export function LearnProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state, hydrated])
+
+  // One-way sync browser CLAUDE.md → on-disk ./CLAUDE.md so the spawned `claude` (CLI mode)
+  // reads what the user authored. Debounced. Silently no-ops in API mode / production where
+  // the /api/claude-md route is unavailable.
+  useEffect(() => {
+    if (!hydrated) return
+    const timer = window.setTimeout(() => {
+      writeClaudeMd(state.claudeMd).catch(() => {
+        /* api mode or production — disk write unavailable */
+      })
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [state.claudeMd, hydrated])
 
   const isCompleted = useCallback(
     (id: LevelId) => state.matchedAt[id] != null,
