@@ -1,22 +1,44 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
-import { FilePlus, Check } from 'lucide-react'
+import { FilePlus, Check, X } from 'lucide-react'
+import { Button } from '@/components/ui'
 
 type PromoteButtonProps = {
   sourceText: string
   className?: string
 }
 
-// Add a phrase from a Claude reply to the ## Notes section of CLAUDE.md.
-// The edit step (refining the seed text before saving) is the user's authorship moment.
+// Click "Add to CLAUDE.md" → modal overlay with a generous textarea so the user can read and
+// trim the candidate text comfortably before saving. The edit step is the user's authorship
+// moment; an inline 3-row textarea wasn't doing it justice for long Claude replies.
 export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
   const { appendNote, setClaudeMdOpen } = useLearnStore()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [justAdded, setJustAdded] = useState(false)
+
+  // Escape closes the modal.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // Lock body scroll while open.
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
   if (justAdded) {
     return (
@@ -27,14 +49,21 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
     )
   }
 
-  if (!open) {
-    return (
+  const onSave = () => {
+    if (!draft.trim()) return
+    appendNote(draft)
+    setClaudeMdOpen(true)
+    setOpen(false)
+    setJustAdded(true)
+    window.setTimeout(() => setJustAdded(false), 2500)
+  }
+
+  return (
+    <>
       <button
         type="button"
         onClick={() => {
-          const trimmed = sourceText.trim()
-          const seed = trimmed.length > 240 ? trimmed.slice(0, 237) + '…' : trimmed
-          setDraft(seed)
+          setDraft(sourceText.trim())
           setOpen(true)
         }}
         className={cn(
@@ -45,46 +74,60 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
         <FilePlus className="size-3" />
         Add to CLAUDE.md
       </button>
-    )
-  }
 
-  return (
-    <div className="border-border-subtle bg-page mt-2 flex flex-col gap-2 rounded-md border p-2">
-      <p className="text-text-tertiary m-0 text-xs">
-        Edit this down to the part you want Claude to remember next time:
-      </p>
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={3}
-        autoFocus
-        className="text-text-primary font-text resize-y border-none bg-transparent p-0 font-sans text-sm leading-snug outline-none"
-      />
-      <div className="flex gap-2 text-xs">
-        <button
-          type="button"
-          onClick={() => {
-            if (draft.trim()) {
-              appendNote(draft)
-              // Pop the drawer so the user sees their note land in the file.
-              setClaudeMdOpen(true)
-              setJustAdded(true)
-              setOpen(false)
-              setTimeout(() => setJustAdded(false), 2500)
-            }
-          }}
-          className="text-text-primary border-border-subtle hover:bg-state-hover rounded border px-2 py-0.5"
-        >
-          Add to CLAUDE.md
-        </button>
-        <button
-          type="button"
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
           onClick={() => setOpen(false)}
-          className="text-text-tertiary hover:text-text-primary px-2 py-0.5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add to CLAUDE.md"
         >
-          Cancel
-        </button>
-      </div>
-    </div>
+          <div
+            className="bg-surface border-border-subtle shadow-popover relative flex max-h-[90vh] w-full max-w-2xl flex-col gap-3 rounded-lg border p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-baseline justify-between gap-2">
+              <h2 className="text-text-primary font-serif text-lg">Add to CLAUDE.md</h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="text-text-tertiary hover:text-text-primary"
+              >
+                <X className="size-4" />
+              </button>
+            </header>
+
+            <p className="text-text-secondary m-0 text-xs leading-relaxed">
+              Edit this down to the part you want Claude to remember. The shorter and more
+              specific the note, the more likely it shows up in the next reply. Saving appends
+              it under <code className="font-mono text-[11px]">## Notes</code>.
+            </p>
+
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              autoFocus
+              className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[50vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)]"
+            />
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <Button variant="primary" onClick={onSave} disabled={!draft.trim()}>
+                <FilePlus className="size-4" />
+                Add to CLAUDE.md
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
