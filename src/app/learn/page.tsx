@@ -1,7 +1,17 @@
 import Link from 'next/link'
 import { LEVELS } from '@/lib/levels/registry'
 import { ShapeTray } from '@/components/learn/ShapeTray'
+import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
+import type { LevelId, ShapeKind } from '@/lib/levels/types'
+
+const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
+  1: 'circle',
+  2: 'triangle',
+  3: 'arc',
+  4: 'square',
+  5: 'composite',
+}
 
 export default function LearnLanding() {
   const levels = [1, 2, 3, 4, 5] as const
@@ -11,16 +21,17 @@ export default function LearnLanding() {
       <LearnHeader />
 
       <section>
-        <h1 className="font-serif text-text-primary mb-2 text-3xl">Five shapes</h1>
+        <h1 className="font-serif text-text-primary mb-3 text-4xl">Dancing with Claude</h1>
         <p className="text-text-secondary max-w-prose text-base leading-relaxed">
-          You've used Claude. This is about <em>directing</em> Claude — the small, specific moves
-          that turn a chat partner into a workshop assistant. Each level surfaces one Claude-Code
-          capability users frequently don't know they're missing. The playground is a browser-side
-          face detector; the lever is your CLAUDE.md.
+          A five-figure choreography for learning to direct Claude Code. Each figure surfaces one
+          capability surveyed users frequently don't know they're missing — slash commands they
+          never invoked, a CLAUDE.md they never edited, a tool call they auto-accepted. You earn
+          a Bauhaus shape on each figure; the dancer takes form as you go.
         </p>
         <p className="text-text-secondary mt-3 max-w-prose text-base leading-relaxed">
-          Levels are asynchronous — once you start, your CLAUDE.md persists across the rest, and
-          you can revisit any level at any time.
+          The score is your CLAUDE.md, and you write it as you dance. The figures are
+          asynchronous — your score persists across them, and you can revisit any figure at any
+          time.
         </p>
 
         <div className="border-border-soft mt-8 flex items-center gap-4 rounded-lg border p-4">
@@ -37,10 +48,13 @@ export default function LearnLanding() {
               key={id}
               className="border-border-soft flex items-center gap-4 rounded-lg border p-4"
             >
-              <div className="text-text-tertiary font-mono text-xs">L{id}</div>
+              <Shape kind={LEVEL_SHAPES[id]} size={40} earned={false} className="shrink-0" />
               <div className="flex-1">
-                <div className="text-text-primary font-medium">{def.title}</div>
-                <div className="text-text-tertiary text-sm">{def.capability}</div>
+                <div className="text-text-tertiary font-mono text-xs uppercase tracking-wider">
+                  Figure {id}
+                </div>
+                <div className="text-text-primary mt-0.5 font-medium">{def.title}</div>
+                <div className="text-text-tertiary mt-0.5 text-sm">{def.capability}</div>
               </div>
               <Link
                 href={`/learn/${id}`}
@@ -52,6 +66,11 @@ export default function LearnLanding() {
           )
         })}
       </section>
+
+      <footer className="text-text-tertiary pt-2 text-xs italic">
+        Visual language adapted from Oskar Schlemmer's Bauhaus dances (1922–1929) — figures
+        constructed of circle, triangle, arc, square, and their composite.
+      </footer>
     </div>
   )
 }

@@ -4,13 +4,15 @@ Guidance for AI assistants working in this prototype.
 
 ## What this is
 
-A five-level in-app learning experience that teaches Claude Code usage patterns through a spatial-intelligence substrate (browser-based face detection + Claude API). Built on top of a Next.js 16 / Tailwind v4 / `@anthropic-ai/sdk` chat scaffold.
+**Dancing with Claude.** A five-figure choreography for learning to direct Claude Code, hosted as a Next.js 16 SPA. The user works inside a browser computer-vision playground; each figure surfaces one Claude-Code capability frequent users frequently miss. The score the user writes as they go is their own `CLAUDE.md`, persisted across all five figures.
 
-The progression axis is **Claude-usage sophistication**, not perception. The substrate (a webcam-based detector) is the playground; what the user is mastering is their repertoire of how to deploy Claude as a complement.
+The progression axis is **Claude-usage sophistication**, not perception. The CV substrate is the playground; what the user is mastering is their repertoire of how to deploy Claude as a complement.
 
-## Levels (the progression spine)
+The visual language is adapted from **Oskar Schlemmer's Bauhaus dances** (1922–1929): dancers built of geometric primitives, choreography laid out as a score of cells with handwritten *Pause* annotations between figures. References live at `../design-inspiration/`.
 
-| # | Shape | Capability earned |
+## Figures (the progression spine)
+
+| Figure | Shape | Capability earned |
 |---|---|---|
 | 1 | Circle | Reading & directing Claude via `CLAUDE.md` |
 | 2 | Triangle | Discovering and invoking slash commands |
@@ -18,7 +20,7 @@ The progression axis is **Claude-usage sophistication**, not perception. The sub
 | 4 | Square | Reading tool-use *as it happens*; reviewing before accept |
 | 5 | Composite | Scoping a change to one segment, not the whole codebase |
 
-Each level's *gate* must test a Claude-usage capability — never a domain outcome. If a level ends with "you tuned the threshold correctly," it's the wrong gate.
+Each figure's *gate* must test a Claude-usage capability — never a domain outcome. If a figure ends with "you tuned the threshold correctly," it's the wrong gate.
 
 ## Architecture inherited from the scaffold (don't refactor unprompted)
 
@@ -33,11 +35,17 @@ Note: if Level 4 needs visible tool-use, the edge runtime may need to move to no
 
 ## What this prototype adds
 
-- `src/lib/learn-store.tsx` — sibling provider for level/shape state, localStorage-persisted. Do NOT fold into ChatProvider — they have different lifecycles.
-- New routes `/learn` and `/learn/[level]` for the level UI.
-- Webcam + MediaPipe face detection, browser-only. Image-upload fallback on the same code path. _(planned — not yet built)_
-- Per-level system prompts; the Level 1 prompt embeds a real classroom `CLAUDE.md` excerpt as a constant.
+- `src/lib/learn-store.tsx` — sibling provider for figure/shape state and the live CLAUDE.md the user authors. Persisted to localStorage. Do NOT fold into ChatProvider — they have different lifecycles.
+- Routes `/learn` (figure index) and `/learn/[level]` (per-figure workspace; the URL slug keeps the word "level" for now to avoid a route rename).
+- Per-figure workspaces under `src/components/learn/Level{1..5}Workspace.tsx`, dispatched from the route. Each owns its interaction (chat with pinning, slash palette, directive form, tool proposal card, segment picker).
+- `ClaudeMdAuthor` panel lives on every figure's page — the score the user is writing.
+- `src/app/api/level-chat/route.ts` assembles the system prompt at call time from the current `ClaudeMdState`; figures that need an extra instruction (e.g. L4's JSON tool-use convention) pass `extraSystem`.
+- Webcam + MediaPipe face detection, browser-only. Image-upload fallback on the same code path. _(planned — not yet built; the "playground" is currently metaphorical)._
 - `docs/desktop-translation.md` — running notes on how each web mechanic maps to its Claude Code desktop equivalent in a target project.
+
+## Naming note
+
+Internal identifiers still use the word `level` (`LevelId`, `LEVELS`, `Level1Workspace`, `/learn/[level]`, `level-1.ts`, …). User-facing surfaces use **figure**. Don't rename the identifiers unprompted — it's a sweeping change for no functional gain.
 
 ## Component conventions
 
@@ -84,4 +92,5 @@ npm run lint    # eslint
 
 - Real-time Claude narration of every detector frame. We tried this framing in planning and dropped it; not what the design calls for.
 - Parity-principle / "extended mind" claims in copy or rationale. Anchor on the **complementary principle** + constructivism instead.
-- Level gates that test domain understanding instead of Claude-usage capability.
+- Figure gates that test domain understanding instead of Claude-usage capability.
+- Pi-classroom content (hostnames, venv paths, depthai versions, SSH) in user-facing copy. That's a later, locally-run iteration's concern; mixing it into the browser playground muddles the user's mental model.

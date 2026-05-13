@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Five Shapes',
-  description: 'A five-level in-app learning experience for Claude Code usage patterns.',
+  title: 'Dancing with Claude',
+  description:
+    'A five-figure choreography for learning to direct Claude Code — built on Schlemmer’s Bauhaus dances.',
 }
 
 export default function RootLayout({

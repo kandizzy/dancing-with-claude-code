@@ -5,7 +5,7 @@ export function LearnHeader() {
   return (
     <header className="flex items-center justify-between">
       <Link href="/learn" className="text-text-primary font-serif text-xl">
-        Five shapes
+        Dancing with Claude
       </Link>
       <ShapeTray />
     </header>

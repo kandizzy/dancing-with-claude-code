@@ -37,7 +37,7 @@ export function Sidebar({
           href="/new"
           className="text-text-primary flex h-8 items-center overflow-hidden whitespace-nowrap pl-2 font-serif text-lg font-medium no-underline group-data-[collapsed]/sidebar:hidden"
         >
-          Five Shapes
+          Dancing with Claude
         </Link>
         {onToggle && (
           <button

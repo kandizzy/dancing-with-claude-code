@@ -1,16 +1,20 @@
-# Five Shapes
+# Dancing with Claude
 
-A five-level in-app learning experience that progressively teaches Claude Code usage patterns. The user starts in unfamiliar domain territory (spatial intelligence — face detection, perception models), and each level earns them a Bauhaus shape by proving they used a specific Claude capability they didn't have before.
+A five-figure choreography for learning to direct Claude Code. The user works inside a browser computer-vision playground; each figure surfaces one capability frequent Claude users still don't have a feel for — slash commands they never invoked, a `CLAUDE.md` they never edited, a tool call they auto-accepted. The score they write as they dance is their own CLAUDE.md, which grows asynchronously across all five figures.
 
-The progression axis is **Claude-usage sophistication**, not the domain. Levels:
+The progression axis is **Claude-usage sophistication**, not the perception domain. Each figure earns a Bauhaus shape; the dancer takes form as the user goes.
 
-| # | Shape | Capability |
+| Figure | Shape | Capability |
 |---|---|---|
 | 1 | Circle | Reading & directing Claude via `CLAUDE.md` |
 | 2 | Triangle | Discovering and invoking slash commands |
 | 3 | Arc | Writing a directive instead of chatting |
 | 4 | Square | Reading tool-use as it happens; reviewing before accept |
 | 5 | Composite | Scoping changes to one segment |
+
+## Design inspiration
+
+The visual language draws from **Oskar Schlemmer's Bauhaus dances** (1922–1929) — the *Triadic Ballet*, *Form Dance*, *Gesture Dance*, *Space Dance* — where dancers' bodies are constructed of geometric primitives (cones, cylinders, discs, spheres) and the choreography is laid out as a score of cells with handwritten *Pause* annotations between figures. The five earned shapes here are the costume of the dancer the user is building.
 
 ## Requirements
 
@@ -44,7 +48,7 @@ npm run dev
 
 Open <http://localhost:3000/learn>.
 
-Without an `ANTHROPIC_API_KEY`, the level API returns a fingerprint-free generic reply so the gate fails honestly — set the key to unlock real Claude responses.
+Without an `ANTHROPIC_API_KEY`, the figure-chat API returns a fingerprint-free generic reply so the gate fails honestly — set the key to unlock real Claude responses.
 
 ## Stack
 
