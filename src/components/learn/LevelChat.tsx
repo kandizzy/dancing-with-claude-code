@@ -1,27 +1,22 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import { InputBar } from '@/components/chat/InputBar'
+import { useCallback, useState } from 'react'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
-import { MODELS, type Model } from '@/lib/api'
 import { ask } from '@/lib/ai/client'
 import { findUserEntryMatch } from '@/lib/levels/registry'
 import type { LevelDefinition } from '@/lib/levels/types'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
-import { Check } from 'lucide-react'
+import { ArrowUp, Check, FilePlus, Loader2 } from 'lucide-react'
 import { PromoteButton } from './PromoteButton'
-
-const HAIKU = MODELS.find((m) => m.id === 'claude-haiku-4-5') ?? MODELS[0]
+import { Button } from '@/components/ui'
 
 type LevelChatProps = {
   level: LevelDefinition
   onMatchedText?: (text: string | null) => void
   className?: string
-  suggestedPrompts?: string[]
-  emptyHint?: string
 }
 
 type RenderedMessage = {
@@ -33,34 +28,41 @@ type RenderedMessage = {
 
 const SYSTEM_PROMPT = `You are Claude, helping a user explore a browser-based computer vision playground. The user's project has a CLAUDE.md file you should treat as authoritative project context (in CLI mode you read it from disk natively; in API mode it's embedded in your system prompt). When the user's pinned notes are relevant, draw on them directly. Keep replies short (1–3 short paragraphs).`
 
-export function LevelChat({
-  level,
-  onMatchedText,
-  className,
-  suggestedPrompts,
-  emptyHint,
-}: LevelChatProps) {
-  const { awardShape, isCompleted, claudeMd } = useLearnStore()
+// Concrete example notes the user can one-click add to ## Notes. Designed to be the
+// kind of thing a real designer would write while working with the playground.
+const STARTER_NOTES: Array<{ label: string; text: string }> = [
+  {
+    label: 'I prefer fewer false positives',
+    text: "I'd rather miss faces than detect false ones. Prefer thresholds 0.8+.",
+  },
+  {
+    label: 'I shoot in low light',
+    text: "I usually work in dim light. Suggest a threshold around 0.5; flag when scores drop below 0.4 across multiple frames.",
+  },
+  {
+    label: 'Always cite the score',
+    text: "Always cite the most recent detection's actual score before recommending a change. Don't guess.",
+  },
+]
+
+export function LevelChat({ level, onMatchedText, className }: LevelChatProps) {
+  const { awardShape, isCompleted, claudeMd, appendNote, setClaudeMdOpen } = useLearnStore()
   const [messages, setMessages] = useState<RenderedMessage[]>([])
+  const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [streamBuffer, setStreamBuffer] = useState('')
-  const [model, setModel] = useState<Model>(HAIKU)
-  const abortRef = useRef<AbortController | null>(null)
   const completed = isCompleted(level.id)
 
   const handleSend = useCallback(
     async (text: string) => {
-      const userMsg: RenderedMessage = { id: crypto.randomUUID(), role: 'user', content: text }
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const userMsg: RenderedMessage = { id: crypto.randomUUID(), role: 'user', content: trimmed }
       setMessages((m) => [...m, userMsg])
+      setInput('')
       setStreaming(true)
-      setStreamBuffer('')
 
       try {
-        const result = await ask({
-          systemPrompt: SYSTEM_PROMPT,
-          userPrompt: text,
-          model: model.id,
-        })
+        const result = await ask({ systemPrompt: SYSTEM_PROMPT, userPrompt: trimmed })
         const matched = findUserEntryMatch(result.text, claudeMd)
         const assistantMsg: RenderedMessage = {
           id: crypto.randomUUID(),
@@ -82,39 +84,57 @@ export function LevelChat({
         ])
       } finally {
         setStreaming(false)
-        setStreamBuffer('')
       }
     },
-    [level, awardShape, completed, claudeMd, model, onMatchedText],
+    [level, awardShape, completed, claudeMd, onMatchedText],
   )
 
-  const handleStop = useCallback(() => {
-    // ask() is single-call buffered — there's no in-flight stream to abort. Keep the UI
-    // contract (Stop button visible while streaming) but no-op the handler.
-    abortRef.current?.abort()
-  }, [])
+  const onPickStarter = (text: string) => {
+    appendNote(text)
+    setClaudeMdOpen(true)
+  }
 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
   const showSuccess = completed && lastAssistant?.matchedText
   const isEmpty = messages.length === 0
   const showFollowUpNudge =
-    !streaming &&
-    lastAssistant &&
-    !lastAssistant.matchedText &&
-    !completed
-  const showChips =
-    isEmpty && !streaming && suggestedPrompts && suggestedPrompts.length > 0
+    !streaming && lastAssistant && !lastAssistant.matchedText && !completed
 
   return (
     <div className={cn('flex h-full flex-col gap-4', className)}>
       <div className="scroll-area flex-1 overflow-y-auto pr-2">
         {isEmpty && (
-          <ClaudeMessage>
-            <ClaudeParagraph className="text-text-secondary italic">
-              {emptyHint ??
-                'Ask about the playground. When Claude says something worth keeping, add it to CLAUDE.md and ask again — the next reply will use it.'}
-            </ClaudeParagraph>
-          </ClaudeMessage>
+          <>
+            <ClaudeMessage>
+              <ClaudeParagraph className="text-text-secondary italic">
+                Ask about the playground. When Claude says something worth keeping, add it to{' '}
+                <code className="font-mono text-xs">CLAUDE.md</code> and ask again — the next
+                reply will use it.
+              </ClaudeParagraph>
+            </ClaudeMessage>
+
+            <div className="border-border-subtle bg-page mt-3 rounded-lg border p-3">
+              <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
+                Stuck on what to add? Try a starter note.
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {STARTER_NOTES.map((n) => (
+                  <button
+                    key={n.label}
+                    type="button"
+                    onClick={() => onPickStarter(n.text)}
+                    className="hover:bg-state-hover -mx-2 flex items-start gap-2 rounded-md px-2 py-1.5 text-left"
+                  >
+                    <FilePlus className="text-text-tertiary mt-0.5 size-3 shrink-0" />
+                    <div className="flex-1">
+                      <div className="text-text-primary text-sm font-medium">{n.label}</div>
+                      <div className="text-text-tertiary truncate text-xs">{n.text}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {messages.map((m) =>
@@ -132,9 +152,12 @@ export function LevelChat({
           ),
         )}
 
-        {streaming && streamBuffer && (
+        {streaming && (
           <ClaudeMessage>
-            <ClaudeParagraph className="whitespace-pre-wrap">{streamBuffer}</ClaudeParagraph>
+            <div className="text-text-tertiary inline-flex items-center gap-2 text-xs">
+              <Loader2 className="size-3 animate-spin" />
+              claude is working…
+            </div>
           </ClaudeMessage>
         )}
       </div>
@@ -147,7 +170,7 @@ export function LevelChat({
           </div>
           <p className="text-text-secondary m-0">
             Claude just used what <em>you</em> wrote into CLAUDE.md. Your writing is now part of
-            the project context Claude reads on every ask. Keep adding as you go.
+            the project context Claude reads on every ask.
           </p>
         </div>
       )}
@@ -155,38 +178,39 @@ export function LevelChat({
       {showFollowUpNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
           <p className="text-text-secondary m-0">
-            Claude didn't draw on your notes this time. Try adding a note to the{' '}
-            <code className="font-mono text-xs">## Notes</code> section of CLAUDE.md — or
-            rewrite one to be more specific — and ask again.
+            Claude didn't draw on your notes this time. Try adding a note that the question
+            depends on — or rewrite one to be more specific.
           </p>
         </div>
       )}
 
-      {showChips && (
-        <div className="flex flex-wrap gap-2">
-          {suggestedPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => handleSend(prompt)}
-              className="text-text-secondary border-border-subtle hover:bg-state-hover hover:text-text-primary rounded-full border px-3 py-1 text-xs"
-            >
-              {prompt}
-            </button>
-          ))}
+      <div className="border-border-subtle bg-surface relative rounded-xl border p-3">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSend(input)
+            }
+          }}
+          rows={2}
+          placeholder="Ask Claude about the playground…"
+          disabled={streaming}
+          className="text-text-primary font-text placeholder:text-text-tertiary w-full resize-none border-none bg-transparent p-0 text-sm leading-snug outline-none"
+        />
+        <div className="mt-2 flex items-center justify-end gap-2">
+          <Button
+            size="icon"
+            variant="primary"
+            onClick={() => handleSend(input)}
+            disabled={!input.trim() || streaming}
+            aria-label="Send"
+          >
+            {streaming ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+          </Button>
         </div>
-      )}
-
-      <InputBar
-        models={MODELS}
-        model={model}
-        onModelChange={setModel}
-        isStreaming={streaming}
-        onSend={handleSend}
-        onStop={handleStop}
-        placeholder="Ask Claude about the playground…"
-      />
+      </div>
     </div>
   )
 }
-

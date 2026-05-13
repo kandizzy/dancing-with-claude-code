@@ -61,11 +61,7 @@ function Figure1() {
         <ClaudeMdAuthor className="min-h-0" />
         <div className="flex min-h-0 flex-col gap-3">
           <WebcamPlayground className="shrink-0" />
-          <LevelChat
-            level={level}
-            suggestedPrompts={level.suggestedPrompts}
-            className="min-h-0 flex-1"
-          />
+          <LevelChat level={level} className="min-h-0 flex-1" />
         </div>
       </div>
     </div>

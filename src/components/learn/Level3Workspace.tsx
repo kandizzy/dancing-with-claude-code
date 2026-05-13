@@ -7,11 +7,38 @@ import { ClaudeMessage } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { Button } from '@/components/ui'
-import { ArrowUp, GitCompareArrows, Loader2 } from 'lucide-react'
+import { ArrowUp, GitCompareArrows, Loader2, Sparkles } from 'lucide-react'
 import { LEVEL_3_EXTRA_SYSTEM } from '@/lib/levels/level-3'
 import type { LevelDefinition } from '@/lib/levels/types'
 
 type Props = { level: LevelDefinition }
+
+// Starter directives the user can one-click load into the form. Designed as real changes a
+// designer might make to this codebase — concrete enough that the user isn't staring at
+// empty fields wondering what to write.
+const STARTERS: Array<{ label: string; scope: string; target: string; action: string }> = [
+  {
+    label: 'Add a confidence threshold slider',
+    scope: 'the playground UI',
+    target: 'src/components/learn/WebcamPlayground.tsx',
+    action:
+      "Add a horizontal slider beneath the detector that updates a `threshold` state (0.0–1.0), and wire it into the MediaPipe detector's minDetectionConfidence option.",
+  },
+  {
+    label: 'Show the frame rate on the overlay',
+    scope: 'the canvas overlay',
+    target: 'src/components/learn/WebcamPlayground.tsx',
+    action:
+      'Render the current frame rate (smoothed over the last second) in the top-left corner of the canvas overlay, in the same monospace style as the existing detection labels.',
+  },
+  {
+    label: 'Switch the playground to pose detection',
+    scope: 'the detector model',
+    target: 'src/components/learn/WebcamPlayground.tsx',
+    action:
+      'Replace the face-landmarker with MediaPipe Tasks PoseLandmarker. Keep the existing detection-rendering loop; render keypoints in the same Bauhaus red.',
+  },
+]
 
 export function Level3Workspace({ level }: Props) {
   const { awardShape, isCompleted } = useLearnStore()
@@ -56,9 +83,48 @@ export function Level3Workspace({ level }: Props) {
     setDiffOpen(true)
   }, [])
 
+  const isEmpty = !scope.trim() && !target.trim() && !action.trim()
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="scroll-area flex-1 overflow-y-auto pr-2">
+        <p className="text-text-secondary mb-3 text-sm leading-relaxed">
+          A directive names <strong>where</strong> (Scope), <strong>what</strong> (Target), and
+          <strong> what one change</strong> (Action). It's the difference between "make this
+          better" and "raise the threshold in WebcamPlayground.tsx to 0.8." Sharper requests get
+          sharper edits.
+        </p>
+
+        {isEmpty && (
+          <div className="border-border-subtle bg-page mb-3 rounded-lg border p-3">
+            <div className="text-text-tertiary mb-2 flex items-center gap-1 text-[10px] uppercase tracking-[0.12em]">
+              <Sparkles className="size-3" />
+              Try one of these starter directives
+            </div>
+            <div className="flex flex-col gap-1">
+              {STARTERS.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => {
+                    setScope(s.scope)
+                    setTarget(s.target)
+                    setAction(s.action)
+                  }}
+                  className="hover:bg-state-hover -mx-2 flex items-start gap-2 rounded-md px-2 py-1.5 text-left"
+                >
+                  <div className="flex-1">
+                    <div className="text-text-primary text-sm font-medium">{s.label}</div>
+                    <div className="text-text-tertiary truncate font-mono text-[11px]">
+                      {s.target}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="border-border-subtle bg-surface flex flex-col gap-3 rounded-lg border p-4">
           <Field
             label="Scope"

@@ -82,6 +82,19 @@ export function Level5Workspace({ level }: Props) {
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="scroll-area flex-1 overflow-y-auto pr-2">
+        <p className="text-text-secondary mb-2 text-sm leading-relaxed">
+          <strong>Scoping</strong> means telling Claude to touch <em>only this one thing</em>.
+          Without scope, Claude often "helpfully" refactors more than you asked. A scoped ask
+          closes that door before it opens.
+        </p>
+        <p className="text-text-tertiary mb-3 text-xs leading-relaxed">
+          A <strong>segment</strong> here is one editable piece of your CLAUDE.md — a single
+          behavior rule, or a single pinned note. Pick one. Then describe one change to it.
+          Examples of scoped asks: <em>"rewrite this rule so it requires a number, not a vague
+          threshold"</em> · <em>"reword this note in the imperative — say 'always do X', not 'I
+          prefer X'"</em> · <em>"add a sentence to this rule explaining why."</em>
+        </p>
+
         <div className="border-border-subtle bg-surface flex flex-col gap-3 rounded-lg border p-4">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-text-tertiary text-xs font-semibold uppercase tracking-wide">

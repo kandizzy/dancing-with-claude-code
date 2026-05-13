@@ -34,9 +34,4 @@ export const level1: LevelDefinition = {
     'Claude Code reads a file called CLAUDE.md when you start it in a project. Most users never edit it. Here you will — by adding to it as you go. The next ask Claude makes will see what you wrote and treat it as authoritative.',
   task:
     'Ask about the playground. When Claude says something worth keeping — or when you have a preference you want to lock in — add it to CLAUDE.md. Ask again and watch the answer change.',
-  suggestedPrompts: [
-    'What confidence threshold should I use?',
-    'What does the score next to each detection mean?',
-    'Why does Claude miss me when I turn sideways?',
-  ],
 }
