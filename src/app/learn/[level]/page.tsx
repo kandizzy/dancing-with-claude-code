@@ -31,7 +31,7 @@ export default function LevelPage() {
 
       <div>
         <Link
-          href="/learn"
+          href="/"
           className="text-text-tertiary hover:text-text-primary mb-2 inline-flex items-center gap-1 text-xs"
         >
           <ArrowLeft className="size-3" />

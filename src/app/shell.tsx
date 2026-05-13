@@ -21,8 +21,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
 
-  // The /learn experience renders its own header and progress UI; skip the chat sidebar.
-  if (pathname.startsWith('/learn')) {
+  // The Dancing-with-Claude experience (root + per-figure routes) renders its own header and
+  // progress UI; skip the chat sidebar there. The chat scaffold routes (/new, /chat, /projects)
+  // still get the original AppShell.
+  if (pathname === '/' || pathname.startsWith('/learn')) {
     return <div className="h-dvh">{children}</div>
   }
 
