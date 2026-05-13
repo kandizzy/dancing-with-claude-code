@@ -5,6 +5,7 @@ import { useLearnStore } from '@/lib/learn-store'
 import { streamLevelChat, type LevelMessage } from '@/lib/level-api'
 import { LEVEL_2_COMMANDS, type SlashCommand } from '@/lib/levels/level-2'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
+import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { Button } from '@/components/ui'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
@@ -106,7 +107,7 @@ export function Level2Workspace({ level }: Props) {
             </div>
           ) : (
             <ClaudeMessage key={m.id}>
-              <ClaudeParagraph className="whitespace-pre-wrap">{m.content}</ClaudeParagraph>
+              <ClaudeMarkdown text={m.content} />
             </ClaudeMessage>
           ),
         )}

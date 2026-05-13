@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
 import { streamLevelChat } from '@/lib/level-api'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
+import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { Button } from '@/components/ui'
 import { ArrowUp } from 'lucide-react'
@@ -89,9 +90,14 @@ Acknowledge what you'll do in one sentence, then do it. Do not touch anything ou
           />
         </div>
 
-        {(reply || buffer) && (
+        {reply && !buffer && (
           <ClaudeMessage>
-            <ClaudeParagraph className="whitespace-pre-wrap">{reply || buffer}</ClaudeParagraph>
+            <ClaudeMarkdown text={reply} />
+          </ClaudeMessage>
+        )}
+        {buffer && (
+          <ClaudeMessage>
+            <ClaudeParagraph className="whitespace-pre-wrap">{buffer}</ClaudeParagraph>
           </ClaudeMessage>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { InputBar } from '@/components/chat/InputBar'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
+import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { MODELS, type Model } from '@/lib/api'
 import { streamLevelChat, type LevelMessage } from '@/lib/level-api'
@@ -127,9 +128,7 @@ export function LevelChat({
           ) : (
             <div key={m.id}>
               <ClaudeMessage>
-                <ClaudeParagraph className="whitespace-pre-wrap">
-                  {highlightMatch(m.content, m.matchedText)}
-                </ClaudeParagraph>
+                <ClaudeMarkdown text={m.content} highlight={m.matchedText ?? null} />
               </ClaudeMessage>
               <div className="-mt-1 mb-3 flex items-center gap-3 pl-4">
                 <PromoteButton sourceText={m.content} />
@@ -196,34 +195,3 @@ export function LevelChat({
   )
 }
 
-function highlightMatch(text: string, matched: string | null | undefined) {
-  if (!matched) return text
-  const normEntry = matched.toLowerCase()
-  const normText = text.toLowerCase()
-  let idx = normText.indexOf(normEntry)
-  let len = matched.length
-  if (idx < 0) {
-    const words = matched.split(/\s+/)
-    for (let i = 0; i + 4 <= words.length; i++) {
-      const slice = words.slice(i, i + 4).join(' ').toLowerCase()
-      const at = normText.indexOf(slice)
-      if (at >= 0) {
-        idx = at
-        len = slice.length
-        break
-      }
-    }
-  }
-  if (idx < 0) return text
-
-  const before = text.slice(0, idx)
-  const match = text.slice(idx, idx + len)
-  const after = text.slice(idx + len)
-  return (
-    <>
-      {before}
-      <mark className="rounded-xs bg-[color:var(--color-accent)]/25 px-0.5">{match}</mark>
-      {after}
-    </>
-  )
-}
