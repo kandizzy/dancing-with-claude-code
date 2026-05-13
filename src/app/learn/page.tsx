@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { LEVELS } from '@/lib/levels/registry'
-import { ShapeTray } from '@/components/learn/ShapeTray'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
+import { ArrowRight } from 'lucide-react'
 import type { LevelId, ShapeKind } from '@/lib/levels/types'
 
 const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
@@ -14,77 +14,72 @@ const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
   5: 'composite',
 }
 
+// "Pause" annotations punctuate the score between figures (mirrors Schlemmer's margin notes).
+// Keyed by the figure id that they appear *after*.
+const PAUSE_AFTER = new Set<LevelId>([2, 4])
+
 export default function LearnLanding() {
-  const levels = [1, 2, 3, 4, 5] as const
+  const levels: LevelId[] = [1, 2, 3, 4, 5]
 
   return (
-    <div className="mx-auto flex h-dvh max-w-3xl flex-col gap-8 overflow-y-auto px-6 py-10">
+    <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-5 px-6 py-6 overflow-hidden">
       <LearnHeader />
 
-      <section>
-        <h1 className="font-serif text-text-primary mb-3 text-4xl">Dancing with Claude</h1>
-        <p className="text-text-secondary max-w-prose text-base leading-relaxed">
-          A five-figure choreography for learning to direct Claude Code. Each figure surfaces one
-          capability surveyed users frequently don't know they're missing — slash commands they
-          never invoked, a CLAUDE.md they never edited, a tool call they auto-accepted. You earn
-          a Bauhaus shape on each figure; the dancer takes form as you go.
-        </p>
-        <p className="text-text-secondary mt-3 max-w-prose text-base leading-relaxed">
-          The score is your CLAUDE.md, and you write it as you dance. The figures are
-          asynchronous — your score persists across them, and you can revisit any figure at any
-          time.
+      <section className="max-w-3xl">
+        <h1 className="font-serif text-text-primary text-3xl leading-tight">
+          Dancing with Claude
+        </h1>
+        <p className="text-text-secondary mt-2 text-sm leading-relaxed">
+          A five-figure choreography for learning to direct Claude Code. The playground is the
+          stage; your CLAUDE.md is the score you write as you dance. Figures are asynchronous —
+          revisit any one, in any order.
         </p>
       </section>
 
-      <section>
-        <WebcamPlayground />
-        <p className="text-text-tertiary mt-2 text-xs italic">
-          The playground is the stage. Detections are decoration; what you're learning is how to
-          direct Claude about what's on it.
-        </p>
-      </section>
-
-      <div className="my-2 flex items-center gap-3">
-        <div className="border-border-soft flex-1 border-t" />
-        <span className="font-script text-[color:var(--color-accent)] text-xl">Pause —</span>
-        <div className="border-border-soft flex-1 border-t" />
-      </div>
-
-      <section>
-        <div className="border-border-soft mb-6 flex items-center gap-4 rounded-lg border p-4">
-          <ShapeTray />
-          <p className="text-text-tertiary ml-auto text-xs">Progress saved in this browser.</p>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1.1fr)_minmax(0,_1fr)]">
+        <div className="flex min-h-0 flex-col gap-2">
+          <WebcamPlayground />
+          <p className="text-text-tertiary text-xs italic">
+            Nothing leaves your browser. Detections are decoration; what you're learning is how
+            to direct Claude about what's on the stage.
+          </p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="border-border-soft flex min-h-0 flex-col gap-1 overflow-y-auto rounded-lg border p-3">
           {levels.map((id) => {
             const def = LEVELS[id]
             return (
-              <div
-                key={id}
-                className="border-border-soft flex items-center gap-4 rounded-lg border p-4"
-              >
-                <Shape kind={LEVEL_SHAPES[id]} size={40} earned={false} className="shrink-0" />
-                <div className="flex-1">
-                  <div className="font-script text-[color:var(--color-accent)] text-base leading-none">
-                    Figure {id}
-                  </div>
-                  <div className="text-text-primary mt-1 font-medium">{def.title}</div>
-                  <div className="text-text-tertiary mt-0.5 text-sm">{def.capability}</div>
-                </div>
+              <div key={id}>
                 <Link
                   href={`/learn/${id}`}
-                  className="text-text-primary border-border-subtle hover:bg-state-hover rounded-md border px-3 py-1.5 text-sm"
+                  className="border-border-subtle bg-page hover:bg-state-hover group flex items-center gap-3 rounded-md border px-3 py-2.5"
                 >
-                  Begin
+                  <Shape kind={LEVEL_SHAPES[id]} size={32} earned={false} className="shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-script text-[color:var(--color-accent)] text-base leading-none">
+                      Figure {id}
+                    </div>
+                    <div className="text-text-primary truncate text-sm font-medium">
+                      {def.title}
+                    </div>
+                  </div>
+                  <ArrowRight className="text-text-tertiary size-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
+                {PAUSE_AFTER.has(id) && (
+                  <div className="flex items-center gap-2 py-1 pl-3">
+                    <span className="font-script text-[color:var(--color-accent)] text-sm">
+                      Pause —
+                    </span>
+                    <div className="border-border-soft flex-1 border-t" />
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
-      </section>
+      </div>
 
-      <footer className="font-script text-text-tertiary pt-2 text-base italic">
+      <footer className="font-script text-text-tertiary text-sm italic">
         After Oskar Schlemmer · Bauhaus dances, 1922–1929
       </footer>
     </div>

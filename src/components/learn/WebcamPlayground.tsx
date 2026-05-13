@@ -194,21 +194,23 @@ export function WebcamPlayground({ className }: { className?: string }) {
       )}
     >
       <div className="bg-[color:var(--color-stage)] relative aspect-video w-full overflow-hidden">
-        {showWebcamMedia && (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="absolute inset-0 size-full object-cover"
-          />
-        )}
-        {showImageMedia && (
-          <img
-            ref={imageRef}
-            alt="uploaded sample"
-            className="absolute inset-0 size-full object-contain"
-          />
-        )}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={cn(
+            'absolute inset-0 size-full object-cover',
+            !showWebcamMedia && 'hidden',
+          )}
+        />
+        <img
+          ref={imageRef}
+          alt="uploaded sample"
+          className={cn(
+            'absolute inset-0 size-full object-contain',
+            !showImageMedia && 'hidden',
+          )}
+        />
         <canvas ref={canvasRef} className="absolute inset-0 size-full" />
 
         {!showWebcamMedia && !showImageMedia && (
