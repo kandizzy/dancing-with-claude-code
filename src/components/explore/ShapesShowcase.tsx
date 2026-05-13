@@ -26,7 +26,7 @@ const CIRCLE_BREATH_MS = 3600
 const TRIANGLE_SNAP_MS = 1900 // 1300 hold + 600 snap, 6 steps × 60°
 const TRIANGLE_HOLD_MS = 1300
 const TRIANGLE_DUR_MS = TRIANGLE_SNAP_MS - TRIANGLE_HOLD_MS
-const ARC_TILT_MS = 3200
+const ARC_TURN_MS = 7600
 const SQUARE_TILT_MS = 4600
 const COMPOSITE_ORBIT_MS = 4400
 
@@ -83,12 +83,13 @@ export function ShapesShowcase() {
       `rotate(${triAngle.toFixed(2)} ${CENTER_48} ${CENTER_48 + 6})`,
     )
 
-    // Arc — tilts like a hoop edge-on via scaleX through 0.
-    const arcT = (elapsed % ARC_TILT_MS) / ARC_TILT_MS
-    const sx = Math.cos(arcT * Math.PI * 2)
+    // Arc — slow rotation around its visual center. Always reads as an arc,
+    // just pointing in a different direction at any given moment.
+    const arcT = (elapsed % ARC_TURN_MS) / ARC_TURN_MS
+    const arcAngle = arcT * 360
     refs.current[2]?.setAttribute(
       'transform',
-      `translate(${CENTER_48} ${CENTER_48}) scale(${sx.toFixed(3)} 1) translate(${-CENTER_48} ${-CENTER_48})`,
+      `rotate(${arcAngle.toFixed(2)} ${CENTER_48} ${CENTER_48})`,
     )
 
     // Square — slow tilt with held positions at the extremes (sine of sine).
@@ -216,7 +217,7 @@ export function ShapesShowcase() {
                       r={18}
                       fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
-                      strokeWidth={0.9}
+                      strokeWidth={0.55}
                     />
                   )}
                   {s.kind === 'triangle' && (
@@ -224,31 +225,18 @@ export function ShapesShowcase() {
                       points="24,6 44,42 4,42"
                       fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
-                      strokeWidth={0.9}
+                      strokeWidth={0.55}
                       strokeLinejoin="round"
                     />
                   )}
                   {s.kind === 'arc' && (
-                    <>
-                      {/* Top half — solid ink */}
-                      <path
-                        d="M 6 36 A 18 18 0 0 1 42 36"
-                        fill="none"
-                        stroke={INK}
-                        strokeWidth={1.1}
-                        strokeLinecap="round"
-                      />
-                      {/* Implied back-edge (dashed) — sells the 3D tilt */}
-                      <path
-                        d="M 6 36 A 18 18 0 0 0 42 36"
-                        fill="none"
-                        stroke={INK}
-                        strokeWidth={1}
-                        strokeLinecap="round"
-                        strokeDasharray="1.5 2"
-                        opacity={0.45}
-                      />
-                    </>
+                    <path
+                      d="M 6 36 A 18 18 0 0 1 42 36"
+                      fill="none"
+                      stroke={INK}
+                      strokeWidth={0.7}
+                      strokeLinecap="round"
+                    />
                   )}
                   {s.kind === 'square' && (
                     <rect
@@ -258,7 +246,7 @@ export function ShapesShowcase() {
                       height={32}
                       fill={`url(#${FILL_ID(i)})`}
                       stroke={INK}
-                      strokeWidth={0.9}
+                      strokeWidth={0.55}
                     />
                   )}
                   {s.kind === 'composite' && (
@@ -270,7 +258,7 @@ export function ShapesShowcase() {
                           r={10}
                           fill={`url(#${FILL_ID(i)})`}
                           stroke={INK}
-                          strokeWidth={0.9}
+                          strokeWidth={0.55}
                         />
                       </g>
                       <g ref={(el) => { compRefs.current.secondary = el }}>
@@ -281,7 +269,7 @@ export function ShapesShowcase() {
                           height={20}
                           fill={`url(#${FILL_ALT_ID(i)})`}
                           stroke={INK}
-                          strokeWidth={0.9}
+                          strokeWidth={0.55}
                         />
                       </g>
                     </>

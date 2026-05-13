@@ -4,16 +4,19 @@ import { useMemo, useState } from 'react'
 import { marked } from 'marked'
 import { cn } from '@/lib/utils'
 
-type View = 'preview' | 'markdown'
+type View = 'preview' | 'markdown' | 'edit'
 
 /**
- * Markdown editor. Layout:
+ * Markdown editor with three modes selectable via a pill toggle on both desktop and mobile:
  *
- * - Desktop (md+): preview on top, raw markdown editor below — stacked.
- * - Mobile: tabbed view, preview shown by default. Toggle to flip to raw.
+ * - Preview — rendered HTML, read-only. Default view.
+ * - Markdown — raw markdown source, read-only (so the user can study the structure without
+ *   risk of accidentally typing into it).
+ * - Edit — the editable textarea.
  *
- * Adapted from possible-futures/src/components/layout/markdown-editor.tsx and restyled
- * to the prototype's design tokens. Fully controlled — owner holds `value` + `onChange`.
+ * Fully controlled — owner holds `value` + `onChange`. Adapted from
+ * possible-futures/src/components/layout/markdown-editor.tsx and restyled to the prototype's
+ * design tokens.
  */
 export function MarkdownEditor({
   value,
@@ -42,32 +45,35 @@ export function MarkdownEditor({
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      {/* Mobile-only toggle. Hidden on md+ where both panels are visible. */}
-      <div className="md:hidden border-border-subtle inline-flex w-fit rounded-md border p-0.5 text-xs">
+      <div className="border-border-subtle inline-flex w-fit rounded-md border p-0.5 text-xs">
         <TabButton active={view === 'preview'} onClick={() => setView('preview')}>
           Preview
         </TabButton>
         <TabButton active={view === 'markdown'} onClick={() => setView('markdown')}>
           Markdown
         </TabButton>
+        <TabButton active={view === 'edit'} onClick={() => setView('edit')}>
+          Edit
+        </TabButton>
       </div>
 
-      {/* Preview — on top in stacked desktop view; first tab on mobile. */}
-      <Section
-        label="Preview"
-        className={cn(view !== 'preview' && 'hidden md:flex')}
-      >
+      {view === 'preview' && (
         <div
-          className="md-preview text-text-primary border-border-subtle bg-surface min-h-[6rem] overflow-y-auto rounded-md border p-4 text-sm leading-relaxed"
+          className="md-preview text-text-primary border-border-subtle bg-surface min-h-[8rem] overflow-y-auto rounded-md border p-4 text-sm leading-relaxed"
           dangerouslySetInnerHTML={{ __html: html }}
         />
-      </Section>
+      )}
 
-      {/* Raw markdown — below preview on desktop; second tab on mobile. */}
-      <Section
-        label="Markdown"
-        className={cn(view !== 'markdown' && 'hidden md:flex')}
-      >
+      {view === 'markdown' && (
+        <pre
+          aria-label="Markdown source (read-only)"
+          className="text-text-secondary border-border-subtle bg-page min-h-[8rem] overflow-y-auto whitespace-pre-wrap rounded-md border p-3 font-mono text-[12px] leading-[1.55]"
+        >
+          {value}
+        </pre>
+      )}
+
+      {view === 'edit' && (
         <textarea
           aria-label={ariaLabel ?? 'Markdown editor'}
           value={value}
@@ -75,28 +81,10 @@ export function MarkdownEditor({
           rows={rows}
           placeholder={placeholder}
           spellCheck
+          autoFocus
           className="text-text-primary border-border-subtle bg-page placeholder:text-text-tertiary w-full resize-y rounded-md border p-3 font-mono text-[12px] leading-[1.55] outline-none focus:border-[color:var(--color-accent-strong)]"
         />
-      </Section>
-    </div>
-  )
-}
-
-function Section({
-  label,
-  children,
-  className,
-}: {
-  label: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('flex min-h-0 flex-col gap-1', className)}>
-      <div className="text-text-tertiary hidden font-mono text-[10px] uppercase tracking-[0.15em] md:block">
-        {label}
-      </div>
-      {children}
+      )}
     </div>
   )
 }
