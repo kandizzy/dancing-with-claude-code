@@ -49,9 +49,7 @@ export function ShapeTray({ className, ...props }: ShapeTrayProps) {
             title={FIGURE_TITLES[id]}
             className={cn(
               'flex items-center justify-center rounded-full p-1 transition-colors',
-              isActive
-                ? 'bg-[color:var(--color-accent)]/10 ring-1 ring-[color:var(--color-accent-strong)]'
-                : 'hover:bg-state-hover',
+              isActive ? 'bg-state-active' : 'hover:bg-state-hover',
             )}
           >
             <Shape kind={LEVEL_SHAPES[id]} size={28} earned={isCompleted(id)} />
