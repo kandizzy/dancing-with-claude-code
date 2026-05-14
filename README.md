@@ -57,16 +57,24 @@ The app stores progress (earned shapes, conversation session IDs, CLAUDE.md edit
 
 ## Practice this with your own Claude Code
 
-This repo is the project you're learning to direct. Figures 3 and 5 are designed as a round-trip: you compose a directive in the browser, run it against this cloned codebase in your own `claude` session, then paste back what Claude said to close the loop.
+This repo is the project you're learning to direct. The figures you walk in the browser teach moves you can apply in any surface where Claude Code runs — terminal, desktop app, API. To practice in your own terminal against this codebase:
 
 ```bash
 git clone <this-repo-url>
-cd dancing-with-claude/prototype
+cd dancing-with-claude-code
 npm install
 claude    # opens Claude Code in this folder; it reads CLAUDE.md on start
 ```
 
 Good first moves once you're in: try `/explain-figure 1` to have Claude walk you through a figure's code, or paste a directive from Figure 3 and watch Claude propose the edit. See `CONTRIBUTING.md` for the fork → branch → claude → PR loop.
+
+## Future direction
+
+This prototype is a teaching surface that runs in the browser and calls the Claude API via the Agent SDK. That works, but every call bills the user's API key — a small but real friction for students on limited budgets.
+
+A more honest next iteration would **restructure the prototype to run inside Claude Code itself**. Students would open it via `claude` and the lessons would happen in the terminal or desktop app rather than the browser, drawing on whatever Claude subscription the student already has rather than per-call API spend. This also moves closer to how the lessons originally worked when taught in person — the figures become a workflow layer over a real example repo (e.g. [smart-objects-cameras](https://github.com/kandizzy/smart-objects-cameras)) where students pick a camera and walk the five moves on it. The Bauhaus shapes stay; the surface, the cost model, and the example all become the student's choice.
+
+That's a real rebuild, not an iteration, and not what this version is. Noted here so future-me (and anyone reading the repo) sees where it's going.
 
 ## Stack
 
