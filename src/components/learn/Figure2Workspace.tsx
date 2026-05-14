@@ -26,6 +26,7 @@ type Rendered = {
 const F2_SYSTEM = `You are Claude, the co-pilot in a browser-based webcam project the user has cloned locally. The user just sent a message. If it was a slash command, honor whatever the command body asks for. If it was a follow-up to your previous message in this conversation, respond in light of what came before — including answering single-word or single-number replies (e.g. "2" answering "which figure?"). Keep replies short (1–3 short paragraphs).`
 
 const SESSION_STORAGE_KEY = 'education-labs:figure-2:session-id'
+const MESSAGES_STORAGE_KEY = 'education-labs:figure-2:messages'
 
 export function Figure2Workspace({ figure }: Props) {
   const { awardShape, isCompleted } = useLearnStore()
@@ -51,14 +52,36 @@ export function Figure2Workspace({ figure }: Props) {
   // re-stage and overwrite something the user has since typed.
   const prefillConsumedRef = useRef(false)
 
-  // Rehydrate the session ID from localStorage on mount so refreshing the page keeps
-  // the conversation alive. The rendered `messages` are not persisted — only the ID is,
-  // since the SDK holds the actual transcript server-side.
+  // Rehydrate the session ID and the rendered messages from localStorage on mount so
+  // refreshing the page keeps both the conversation alive on the SDK side AND the visible
+  // history matching what Claude has in context. Without persisting messages, the user
+  // returns to a blank chat while Claude still remembers everything — causing replies that
+  // reference "earlier" turns the user can't see.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const stored = window.localStorage.getItem(SESSION_STORAGE_KEY)
-    if (stored) setSessionId(stored)
+    const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY)
+    if (storedSession) setSessionId(storedSession)
+    const storedMessages = window.localStorage.getItem(MESSAGES_STORAGE_KEY)
+    if (storedMessages) {
+      try {
+        const parsed = JSON.parse(storedMessages) as Rendered[]
+        if (Array.isArray(parsed)) setMessages(parsed)
+      } catch {
+        // Corrupted JSON in storage — ignore and let the chat start fresh.
+      }
+    }
   }, [])
+
+  // Persist messages whenever they change. Skips when empty so we don't write an
+  // empty array on initial mount before the rehydrate effect has run.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (messages.length === 0) {
+      window.localStorage.removeItem(MESSAGES_STORAGE_KEY)
+      return
+    }
+    window.localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages))
+  }, [messages])
 
   // Same scroll behavior as FigureChat: pin a new user message or new assistant reply to the
   // top of the scroll viewport so reading starts from the first line, not the prior reply.

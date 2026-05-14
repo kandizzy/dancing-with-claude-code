@@ -85,7 +85,10 @@ export function LearnProvider({ children }: { children: ReactNode }) {
             earnedShapes: parsed.earnedShapes ?? [],
             matchedAt: parsed.matchedAt ?? {},
             claudeMd: migrateClaudeMd(parsed.claudeMd),
-            claudeMdOpen: parsed.claudeMdOpen ?? false,
+            // claudeMdOpen is session state, not progress — always start closed
+            // on a fresh page load. Persisting it means opening the drawer on one
+            // figure leaves it open on every subsequent page.
+            claudeMdOpen: false,
           })
         }
       } catch {
@@ -96,7 +99,13 @@ export function LearnProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    if (hydrated) {
+      // Exclude claudeMdOpen from persistence so the drawer state doesn't leak
+      // across page transitions. Everything else (earned shapes, matchedAt,
+      // claudeMd content) is real progress and must survive a reload.
+      const { claudeMdOpen: _unused, ...persisted } = state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
+    }
   }, [state, hydrated])
 
   // One-way sync browser CLAUDE.md → on-disk ./CLAUDE.md so the spawned `claude` (CLI mode)

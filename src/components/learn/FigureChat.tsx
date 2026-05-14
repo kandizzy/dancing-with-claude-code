@@ -62,20 +62,44 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   // workspace has its own conversation surface. Rehydrated from localStorage on mount.
   const [sessionId, setSessionId] = useState<string | null>(null)
   const sessionStorageKey = `education-labs:figure-${figure.id}:session-id`
+  const messagesStorageKey = `education-labs:figure-${figure.id}:messages`
   const completed = isCompleted(figure.id)
   const scrollRef = useRef<HTMLDivElement>(null)
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const lastUserIdRef = useRef<string | null>(null)
   const lastAssistantIdRef = useRef<string | null>(null)
 
-  // Rehydrate the session ID on mount so refreshing the page keeps the conversation alive.
-  // The rendered `messages` are not persisted — only the ID is. The SDK holds the actual
-  // transcript server-side; we display a fresh empty pane but the model remembers.
+  // Rehydrate the session ID AND the rendered messages on mount so refreshing the
+  // page keeps both the conversation alive on the SDK side AND the visible history
+  // matching what Claude has in context. Without persisting messages, the user returns
+  // to a blank chat while Claude still remembers everything — causing replies that
+  // reference "earlier" turns the user can't see. Storage keys are figure-scoped
+  // because FigureChat is reused across multiple figure pages.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const stored = window.localStorage.getItem(sessionStorageKey)
-    if (stored) setSessionId(stored)
-  }, [sessionStorageKey])
+    const storedSession = window.localStorage.getItem(sessionStorageKey)
+    if (storedSession) setSessionId(storedSession)
+    const storedMessages = window.localStorage.getItem(messagesStorageKey)
+    if (storedMessages) {
+      try {
+        const parsed = JSON.parse(storedMessages) as RenderedMessage[]
+        if (Array.isArray(parsed)) setMessages(parsed)
+      } catch {
+        // Corrupted JSON — ignore and let the chat start fresh.
+      }
+    }
+  }, [sessionStorageKey, messagesStorageKey])
+
+  // Persist messages whenever they change. Removes the key when empty so a reset
+  // (which clears messages back to []) cleans up its own storage too.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (messages.length === 0) {
+      window.localStorage.removeItem(messagesStorageKey)
+      return
+    }
+    window.localStorage.setItem(messagesStorageKey, JSON.stringify(messages))
+  }, [messages, messagesStorageKey])
 
   // When a new user message lands, pin it to the top of the scroll viewport so the user can
   // see their question at the top while Claude works below. When a new assistant reply
