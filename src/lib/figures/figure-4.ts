@@ -11,9 +11,11 @@ export const FIGURE_4_EXTRA_SYSTEM = `You are proposing an edit to the user's CL
 
 Rules:
 - Return the WHOLE file, not just the changed lines. We compute the diff client-side.
-- Preserve the file's existing structure and ordering. Make the smallest change that fulfills the user's request.
+- Preserve the file's existing structure and ordering exactly. Make the smallest change that fulfills the user's request.
+- Touch ONLY the lines you are intentionally changing. Do NOT rewrite, reformat, retrim, or re-indent lines whose meaning is unchanged — a diff that removes a line and re-adds an identical (or near-identical) line is a bug; the user will see it as noise.
 - Do not add commentary before or after the fenced block.
-- Do not invent values the user did not mention. If the user's request is vague, make a minimal, defensible change rather than a maximal one.`
+- Do not invent values the user did not mention. If the user's request is vague, make a minimal, defensible change rather than a maximal one.
+- Use the exact same line endings, whitespace, and indentation as the original on every line you are not actively changing.`
 
 export const figure4: FigureDefinition = {
   id: 4,

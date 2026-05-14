@@ -9,6 +9,9 @@ type Body = {
   // Returned by a previous response's `sessionId`. Threads conversation continuity through
   // the Agent SDK. Omit for a fresh start.
   resumeSessionId?: string | null
+  // Tool names to allow Claude to call. Defaults to none. Figure 5's run step passes
+  // ['Edit', 'Write']. Sanitized server-side so a client can't ask for arbitrary tools.
+  allowedTools?: ReadonlyArray<string>
 }
 
 function sanitizeSessionId(raw: unknown): string | undefined {
@@ -18,6 +21,14 @@ function sanitizeSessionId(raw: unknown): string | undefined {
   // (or worse, prompt-injected fragments) into the SDK's resume parameter.
   if (!/^[a-zA-Z0-9_\-]{8,128}$/.test(trimmed)) return undefined
   return trimmed
+}
+
+function sanitizeAllowedTools(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  // Only allow specific known tool names. Anything else gets dropped silently.
+  const ALLOWED = new Set(['Edit', 'Write', 'Read', 'Bash', 'Glob', 'Grep'])
+  const filtered = raw.filter((t): t is string => typeof t === 'string' && ALLOWED.has(t))
+  return filtered.length > 0 ? filtered : undefined
 }
 
 export async function POST(req: Request) {
@@ -40,6 +51,7 @@ export async function POST(req: Request) {
     systemPrompt,
     userPrompt,
     resumeSessionId: sanitizeSessionId(body.resumeSessionId),
+    allowedTools: sanitizeAllowedTools(body.allowedTools),
     // The Agent SDK reads CLAUDE.md and .claude/commands/ from cwd, which is the prototype
     // directory when started via `npm run dev`.
     cwd: process.cwd(),

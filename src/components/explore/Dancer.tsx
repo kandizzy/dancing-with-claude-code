@@ -120,8 +120,8 @@ export function Dancer() {
 
   return (
     <Stage
-      title="Dancer"
-      caption="Marionette built strictly from the five earned shapes — circle, square, arc, triangle, composite"
+      title="A dancer"
+      caption="An exploration of the basic elements of theatrical creation and design"
     >
       <div className="flex items-center justify-center">
         <svg

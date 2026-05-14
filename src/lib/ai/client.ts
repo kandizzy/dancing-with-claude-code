@@ -9,6 +9,9 @@ export type ClientAiInput = {
   // the same conversation with full context. Omit for a fresh start (or for single-shot
   // callers that have no conversation to thread).
   sessionId?: string | null
+  // Tools to allow the SDK to call. Defaults to none (text-only). Figure 5's run step
+  // passes ['Edit', 'Write'] so Claude can actually edit files on the branch.
+  allowedTools?: ReadonlyArray<string>
 }
 
 export async function ask(input: ClientAiInput): Promise<AiCallResult> {
@@ -21,6 +24,7 @@ export async function ask(input: ClientAiInput): Promise<AiCallResult> {
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,
       resumeSessionId: input.sessionId,
+      allowedTools: input.allowedTools,
     }),
   })
   const body = (await res.json()) as AiCallResult | { error: string }

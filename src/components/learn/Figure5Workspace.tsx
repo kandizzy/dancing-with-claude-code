@@ -6,6 +6,7 @@ import { useLearnStore } from '@/lib/learn-store'
 import { ask, gitAction, gitStatus, readDiff, type GitStatus } from '@/lib/ai/client'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { Shape } from './Shape'
+import { Dancer } from '@/components/explore/Dancer'
 import { Button } from '@/components/ui'
 import {
   ArrowRight,
@@ -36,11 +37,28 @@ const STEP_TITLES: Record<Step, string> = {
   5: 'Decide',
 }
 
-const STARTER_GOALS = [
-  'Add a confidence-score chip beside the detection',
-  'Rename the webcam heading to “Detection studio”',
-  'Add a low-light hint below the webcam',
+// Starter goals are paired with suggested scopes so the user (and the demo video)
+// can advance without typing the file path from scratch. Each scope names a
+// specific file in this repo so the directive Claude refines stays grounded.
+const STARTERS: Array<{ goal: string; scope: string }> = [
+  {
+    goal: 'Add a confidence-score chip beside the detection',
+    scope:
+      'src/components/learn/WebcamPlayground.tsx — beside the existing detection readout, do not modify any other file',
+  },
+  {
+    goal: 'Rename the webcam heading to “Detection studio”',
+    scope:
+      'src/components/learn/WebcamPlayground.tsx — the “the webcam” heading text only, no other file',
+  },
+  {
+    goal: 'Add a low-light hint below the webcam',
+    scope:
+      'src/components/learn/WebcamPlayground.tsx — a small hint element beneath the webcam frame, no other file',
+  },
 ]
+
+const STARTER_GOALS = STARTERS.map((s) => s.goal)
 
 export function Figure5Workspace({ figure }: Props) {
   const { awardShape, isCompleted } = useLearnStore()
@@ -154,8 +172,9 @@ export function Figure5Workspace({ figure }: Props) {
     try {
       const result = await ask({
         systemPrompt:
-          'You are running against a real local Next.js prototype repo. Make exactly the change the user describes. Do not touch files outside the named target. Keep the change small and reversible. Reply with a short summary of what you changed.',
+          "You are running against a real local Next.js prototype repo. The user has given you a scoped directive that names exactly one target file and one change. Use the Edit tool to actually make that change in the named file \u2014 do not just describe it, do not just propose it. After editing, reply with one short sentence summarizing the edit you made. Do not touch any file other than the one named in the directive.",
         userPrompt: directive,
+        allowedTools: ['Edit', 'Read'],
       })
       setClaudeOutput(result.text.trim())
     } catch (err) {
@@ -194,6 +213,27 @@ export function Figure5Workspace({ figure }: Props) {
     },
     [finalizing, decision, branchName, completed, figure, awardShape],
   )
+
+  // Reset every downstream state when the user picks a different starter or types
+  // a different goal. Without this, an earlier walkthrough's directive, branch flag,
+  // and diff would still be sitting in state when the user picks something new — leading
+  // to the screenshot bug where the goal said "rename heading" but the visible directive
+  // was the old confidence-chip one from a prior pass.
+  //
+  // We also prefill the scope field with a paired suggestion so the user doesn't have
+  // to type a file path from scratch — they can still edit it, but the demo flow is
+  // cleaner with both fields populated by a single click.
+  const pickStarterGoal = useCallback((starter: typeof STARTERS[number]) => {
+    setGoal(starter.goal)
+    setScope(starter.scope)
+    setDirective('')
+    setRefineError(null)
+    setBranchCreated(false)
+    setBranchError(null)
+    setClaudeOutput(null)
+    setClaudeError(null)
+    setDiffText(null)
+  }, [])
 
   const advance = (to: Step) => setStep(to)
 
@@ -271,14 +311,14 @@ export function Figure5Workspace({ figure }: Props) {
             </label>
 
             <div className="flex flex-wrap gap-1.5">
-              {STARTER_GOALS.map((s) => (
+              {STARTERS.map((s) => (
                 <button
-                  key={s}
+                  key={s.goal}
                   type="button"
-                  onClick={() => setGoal(s)}
+                  onClick={() => pickStarterGoal(s)}
                   className="border-border-subtle hover:bg-state-hover rounded-md border px-2 py-1 text-xs"
                 >
-                  {s}
+                  {s.goal}
                 </button>
               ))}
             </div>
@@ -645,42 +685,53 @@ function Sendoff({
   onReset: () => void
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-6 py-8 text-center">
-      <Shape kind="composite" size={180} earned animate="always" />
-
-      <div className="flex flex-col gap-3">
-        <h2 className="text-text-primary font-serif text-3xl m-0 leading-tight">
-          You&apos;re ready to use Claude Code anywhere.
-        </h2>
-        <p className="text-text-secondary m-0 max-w-xl text-sm leading-relaxed">
-          You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
-          <code className="font-mono text-xs">{branchName}</code>{' '}
-          {decision === 'merged'
-            ? 'into main. That change is on disk in this very repo.'
-            : 'and main was never touched. The branch is gone.'}{' '}
-          You did the whole loop — branch, scope, ask, diff, decide — on a real codebase.
-          These five moves work the same wherever Claude Code runs: terminal, desktop app,
-          API, here. The surface is yours to pick. The moves are the lesson.
-        </p>
-      </div>
-
-      <div className="border-border-subtle bg-page max-w-md rounded-md border p-3 text-left">
-        <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
-          From here — pick the surface that fits, and try the loop on something new
+    // Cover the figure page area but leave the navbar visible at top. The page's
+    // top padding (py-6 = 24px) plus the header content (≈56px) puts the navbar's
+    // bottom edge around 80px from the viewport top — start the overlay there so
+    // the back-arrow + title stay accessible during the send-off.
+    <div className="fixed inset-x-0 bottom-0 top-[80px] z-40 flex items-center justify-center overflow-y-auto bg-[color:var(--color-page)] px-6 py-10">
+      <div className="grid w-full max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
+        {/* Dancer at its natural size, the visual centerpiece on the left. */}
+        <div className="flex items-center justify-center">
+          <Dancer />
         </div>
-        <CommandLine command="git checkout -b feature/your-next-thing" />
-        <CommandLine command='claude -p "what you want, scoped to one file"' />
-        <CommandLine command="git diff" />
-        <CommandLine command="# merge or discard, just like you did here" />
-      </div>
 
-      <div className="flex items-center gap-3">
-        <Button onClick={onReset}>
-          Walk through again
-        </Button>
-        <Link href="/" className="text-text-tertiary hover:text-text-primary text-sm">
-          Back to all figures
-        </Link>
+        {/* Copy column on the right — heading, summary, follow-up commands, controls. */}
+        <div className="flex flex-col items-start gap-6 text-left">
+          <div className="flex flex-col gap-3">
+            <h2 className="text-text-primary font-serif text-3xl m-0 leading-tight">
+              You&apos;re ready to use Claude Code anywhere.
+            </h2>
+            <p className="text-text-secondary m-0 text-sm leading-relaxed">
+              You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
+              <code className="font-mono text-xs">{branchName}</code>{' '}
+              {decision === 'merged'
+                ? 'into main. That change is on disk in this very repo.'
+                : 'and main was never touched. The branch is gone.'}{' '}
+              You did the whole loop — branch, scope, ask, diff, decide — on a real
+              codebase. These five moves work the same wherever Claude Code runs:
+              terminal, desktop app, API, here. The surface is yours to pick. The moves
+              are the lesson.
+            </p>
+          </div>
+
+          <div className="border-border-subtle bg-page w-full rounded-md border p-3 text-left">
+            <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
+              From here — pick the surface that fits, and try the loop on something new
+            </div>
+            <CommandLine command="git checkout -b feature/your-next-thing" />
+            <CommandLine command='claude -p "what you want, scoped to one file"' />
+            <CommandLine command="git diff" />
+            <CommandLine command="# merge or discard, just like you did here" />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button onClick={onReset}>Walk through again</Button>
+            <Link href="/" className="text-text-tertiary hover:text-text-primary text-sm">
+              Back to all figures
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   )

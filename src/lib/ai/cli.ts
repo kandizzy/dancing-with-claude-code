@@ -34,13 +34,19 @@ Do not narrate your tool use. Do not announce which files you've already read or
  * `settingSources: ['project']` — same project context the interactive `claude` binary
  * would see.
  *
- * Tools are intentionally NOT allowed-listed here. This is a teaching surface; we want
- * Claude to reply with text, not to execute Edit/Write/Bash mid-walkthrough.
+ * Tools are gated per-call via `allowedTools`. By default no tools are exposed — this is a
+ * teaching surface, so most figures want Claude to reply with text only, not to execute
+ * Edit/Write/Bash mid-walkthrough. Figure 5's run-the-directive step is the exception:
+ * it passes ['Edit', 'Write'] because the diff step depends on real file edits.
  */
 export async function claudeCli(
   systemPrompt: string,
   userPrompt: string,
-  options: { cwd?: string; resumeSessionId?: string | null } = {},
+  options: {
+    cwd?: string
+    resumeSessionId?: string | null
+    allowedTools?: ReadonlyArray<string>
+  } = {},
 ): Promise<ClaudeCliResult> {
   try {
     const iterator = query({
@@ -62,6 +68,9 @@ export async function claudeCli(
         settingSources: ['project'],
         cwd: options.cwd ?? process.cwd(),
         ...(options.resumeSessionId ? { resume: options.resumeSessionId } : {}),
+        ...(options.allowedTools && options.allowedTools.length > 0
+          ? { allowedTools: [...options.allowedTools] }
+          : {}),
       },
     })
 

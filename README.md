@@ -47,9 +47,11 @@ cp .env.example .env.local    # add your ANTHROPIC_API_KEY
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> (or 3001 if 3000 is taken — Next.js will print the active URL).
 
 The prototype is **local-only**. The Agent SDK runs in the dev server's Node process, reads `CLAUDE.md` and `.claude/commands/` from this directory natively, and persists conversation sessions to `~/.claude/projects/`. There is no deployed mode.
+
+**Why local-only?** The prototype is local-first by design — figure 5 performs real `git` operations on the checkout (branch, merge, discard), which a hosted version couldn't faithfully demonstrate. The video walkthrough shows it running end-to-end on a local dev server.
 
 ### Starting fresh
 
@@ -60,7 +62,7 @@ The app stores progress (earned shapes, conversation session IDs, CLAUDE.md edit
 This repo is the project you're learning to direct. The figures you walk in the browser teach moves you can apply in any surface where Claude Code runs — terminal, desktop app, API. To practice in your own terminal against this codebase:
 
 ```bash
-git clone <this-repo-url>
+git clone git@github.com:kandizzy/dancing-with-claude-code.git
 cd dancing-with-claude-code
 npm install
 claude    # opens Claude Code in this folder; it reads CLAUDE.md on start

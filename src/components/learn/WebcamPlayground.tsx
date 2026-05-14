@@ -177,9 +177,14 @@ export function WebcamPlayground({ className }: { className?: string }) {
         )}
 
         {detections.length > 0 && (
-          <div className="bg-[color:var(--color-stage)]/70 absolute right-2 top-2 rounded px-2 py-1 font-mono text-xs text-white">
-            {detections.length} face{detections.length === 1 ? '' : 's'} · top score{' '}
-            {Math.max(...detections.map((d) => d.score)).toFixed(2)}
+          <div className="absolute right-2 top-2 flex items-center gap-2">
+            <div className="bg-[color:var(--color-stage)]/70 rounded px-2 py-1 font-mono text-xs text-white">
+              {detections.length} face{detections.length === 1 ? '' : 's'} · top score{' '}
+              {Math.max(...detections.map((d) => d.score)).toFixed(2)}
+            </div>
+            <div className="rounded bg-[rgb(200,40,30)]/90 px-2 py-1 font-mono text-xs text-white">
+              {Math.round(Math.max(...detections.map((d) => d.score)) * 100)}%
+            </div>
           </div>
         )}
       </div>

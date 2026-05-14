@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
 import { ChevronDown, FileText } from 'lucide-react'
@@ -13,12 +15,26 @@ type ClaudeMdDrawerProps = ComponentProps<'div'>
  * Collapsible CLAUDE.md surface rendered on every page. A thin bar by default;
  * expanding it overlays a MarkdownEditor below without reflowing the page.
  *
- * Open/closed state lives in the LearnProvider so it persists across navigations
- * (and survives a refresh via localStorage).
+ * Open/closed state lives in the LearnProvider so the in-page toggle is reactive.
+ * The drawer auto-closes on route changes so opening it on figure 1 (e.g. via a
+ * starter-note click) doesn't leave it open when the user navigates to figure 2.
  */
 export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
   const { claudeMd, setClaudeMd, claudeMdOpen, setClaudeMdOpen } = useLearnStore()
   const noteCount = getNoteEntries(claudeMd).length
+  const pathname = usePathname()
+
+  // Close the drawer on EVERY mount and every path change. The previous version
+  // guarded on `lastPathRef.current !== null` to skip the initial mount, but figure 1
+  // doesn't render this drawer at all (it uses ClaudeMdAuthor inline). When the user
+  // opens the drawer state from figure 1 (via a starter-note click that calls
+  // setClaudeMdOpen(true)) and then navigates to figure 2, this is the drawer's first
+  // mount on that path — the ref-based change detector skipped, and the drawer
+  // rendered as open. Removing the guard means the drawer always starts closed when
+  // it mounts, which is the behavior the user expects.
+  useEffect(() => {
+    setClaudeMdOpen(false)
+  }, [pathname, setClaudeMdOpen])
 
   return (
     <div className={cn('relative z-30', className)} {...props}>

@@ -15,6 +15,9 @@ export type AiCallInput = {
   // never pass one.
   resumeSessionId?: string | null
   cwd?: string
+  // Tools to allow the SDK to call. Defaults to none (text-only). Figure 5's run step
+  // passes ['Edit', 'Write'] so Claude can actually modify files on the branch.
+  allowedTools?: ReadonlyArray<string>
 }
 
 /**
@@ -34,6 +37,7 @@ export async function callAi(input: AiCallInput): Promise<AiCallResult> {
   const result = await claudeCli(input.systemPrompt, input.userPrompt, {
     cwd: input.cwd,
     resumeSessionId: input.resumeSessionId,
+    allowedTools: input.allowedTools,
   })
   return {
     text: result.text,

@@ -53,7 +53,7 @@ export function Figure4Workspace({ figure }: Props) {
 
   const changes = useMemo<Change[] | null>(() => {
     if (proposed == null) return null
-    return diffLines(claudeMd, proposed)
+    return collapseCosmeticDiff(diffLines(claudeMd, proposed))
   }, [claudeMd, proposed])
 
   const stats = useMemo(() => {
@@ -256,6 +256,41 @@ function extractMarkdownBlock(text: string): string | null {
   const trimmed = text.trim()
   if (!trimmed) return null
   return trimmed
+}
+
+// Collapse adjacent remove+add hunks whose content is identical after normalizing
+// whitespace. Without this, Claude occasionally returns the file with imperceptible
+// whitespace differences on lines whose meaning didn't change — diffLines faithfully
+// shows those as remove+add pairs, which renders as noise the user has to mentally
+// filter out. We do the filtering here.
+function collapseCosmeticDiff(changes: Change[]): Change[] {
+  const normalize = (s: string) =>
+    s
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+$/g, '').replace(/[ \t]+/g, ' '))
+      .join('\n')
+      .trim()
+
+  const result: Change[] = []
+  let i = 0
+  while (i < changes.length) {
+    const cur = changes[i]
+    const next = changes[i + 1]
+    // A remove immediately followed by an add (or vice versa) with the same
+    // normalized content is cosmetic — merge into a single unchanged hunk.
+    if (
+      next &&
+      ((cur.removed && next.added) || (cur.added && next.removed)) &&
+      normalize(cur.value) === normalize(next.value)
+    ) {
+      result.push({ value: cur.removed ? next.value : cur.value })
+      i += 2
+      continue
+    }
+    result.push(cur)
+    i += 1
+  }
+  return result
 }
 
 function DiffView({ changes }: { changes: Change[] }) {
