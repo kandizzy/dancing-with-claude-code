@@ -51,11 +51,11 @@ Open <http://localhost:3000> (or 3001 if 3000 is taken — Next.js will print th
 
 The prototype is **local-only**. The Agent SDK runs in the dev server's Node process, reads `CLAUDE.md` and `.claude/commands/` from this directory natively, and persists conversation sessions to `~/.claude/projects/`. There is no deployed mode.
 
-**Why local-only?** The prototype is local-first by design — figure 5 performs real `git` operations on the checkout (branch, merge, discard), which a hosted version couldn't faithfully demonstrate. The video walkthrough shows it running end-to-end on a local dev server.
+**Why local-only?** The prototype is local-first by design — figure 5 performs real `git` operations on the checkout (branch, merge, discard), which a hosted version couldn't faithfully demonstrate.
 
 ### Starting fresh
 
-The app stores progress (earned shapes, conversation session IDs, CLAUDE.md edits, dismissed onboarding cards) in your browser's localStorage. A fresh clone in a fresh browser sees a clean slate. If you've been testing locally and want to reset what a reviewer would see, click **Reset progress** in the footer of the landing page — it clears everything in one go.
+The app stores progress (earned shapes, conversation session IDs, CLAUDE.md edits, dismissed onboarding cards) in your browser's localStorage. A fresh clone in a fresh browser sees a clean slate. To reset state without clearing browser storage by hand, click **Reset progress** in the footer of the landing page — it clears everything in one go.
 
 ## Practice this with your own Claude Code
 

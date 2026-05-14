@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dancing with Claude Code</title>
+  <meta name="description" content="A five-figure choreography for learning to direct Claude Code. Take-home prototype for the Anthropic Education Labs role." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --page: #f7f3ec;
+      --surface: #fbf8f1;
+      --ink: #1a1a1a;
+      --ink-soft: #2a2a2a;
+      --ink-muted: #6f6a62;
+      --ink-faint: #a39e95;
+      --border: #d7d1c5;
+      --border-soft: #e6e0d4;
+      --accent: #c8281e;
+      --ochre: #d9b75a;
+      --serif: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+      --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--serif);
+      background: var(--page);
+      color: var(--ink);
+      font-size: 17px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 64px 32px 96px; }
+    header { margin-bottom: 56px; }
+    .tagline { font-style: italic; color: var(--ink-muted); font-size: 14px; letter-spacing: 0.02em; margin: 0 0 12px; }
+    h1 { font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; margin: 0 0 12px; }
+    .sub { font-style: italic; color: var(--ink-muted); font-size: 16px; margin: 0; }
+    .shapes { display: flex; gap: 14px; margin: 36px 0 12px; flex-wrap: wrap; }
+    .shape-cell { width: 60px; height: 60px; border: 0.5px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; }
+    .shape-cell svg { width: 38px; height: 38px; }
+    section { margin-bottom: 40px; }
+    h2 { font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -0.005em; margin: 0 0 16px; }
+    p { margin: 0 0 14px; color: var(--ink-soft); }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 16px; }
+    th, td { text-align: left; padding: 9px 4px; vertical-align: top; border-bottom: 0.5px solid var(--border-soft); }
+    th { font-weight: 600; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); border-bottom: 0.5px solid var(--border); }
+    td.fig { font-family: var(--mono); font-size: 13px; color: var(--ink-muted); width: 56px; }
+    td.shape { color: var(--ink-soft); width: 110px; font-style: italic; }
+    td.move { color: var(--ink); }
+    .links { border-top: 0.5px solid var(--border); padding-top: 28px; margin-top: 8px; }
+    .links ul { list-style: none; padding: 0; margin: 0; }
+    .links li { padding: 8px 0; border-bottom: 0.5px solid var(--border-soft); }
+    .links li:last-child { border-bottom: 0; }
+    .links a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .links a:hover { text-decoration: underline; }
+    .links .note { display: block; color: var(--ink-muted); font-style: italic; font-size: 14px; margin-top: 3px; }
+    .callout { border-left: 2px solid var(--ochre); padding: 4px 0 4px 18px; margin: 22px 0; color: var(--ink-soft); }
+    .callout strong { color: var(--ink); }
+    footer { margin-top: 56px; padding-top: 22px; border-top: 0.5px solid var(--border); font-size: 13px; color: var(--ink-faint); font-style: italic; line-height: 1.6; }
+    code { font-family: var(--mono); font-size: 14px; background: rgba(0,0,0,0.04); padding: 1px 5px; border-radius: 3px; color: var(--ink-soft); }
+    @media (max-width: 600px) {
+      .wrap { padding: 40px 22px 64px; }
+      h1 { font-size: 34px; }
+      h2 { font-size: 20px; }
+      .shape-cell { width: 52px; height: 52px; }
+      .shape-cell svg { width: 32px; height: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="tagline">The score before the dance</p>
+      <h1>Dancing with Claude Code</h1>
+      <p class="sub">Five small practices for working with Claude Code as a partner, not a black box.</p>
+      <div class="shapes" aria-hidden="true">
+        <div class="shape-cell"><svg viewBox="0 0 48 48" fill="none" stroke-width="0.6" stroke-linejoin="round"><circle cx="24" cy="24" r="14" fill="#f1c0ba" fill-opacity="0.55" stroke="#c8281e" /></svg></div>
+        <div class="shape-cell"><svg viewBox="0 0 48 48" fill="none" stroke-width="0.6" stroke-linejoin="round"><polygon points="24,8 38,38 10,38" fill="#b9c8dd" fill-opacity="0.55" stroke="#4a6f9c" /></svg></div>
+        <div class="shape-cell"><svg viewBox="0 0 48 48" fill="none" stroke-width="0.6" stroke-linejoin="round"><path d="M 10 36 A 16 16 0 0 1 38 16 L 38 36 Z" fill="#e6c97a" fill-opacity="0.55" stroke="#b58a2a" /></svg></div>
+        <div class="shape-cell"><svg viewBox="0 0 48 48" fill="none" stroke-width="0.6" stroke-linejoin="round"><rect x="10" y="10" width="28" height="28" fill="#c8cad4" fill-opacity="0.55" stroke="#6e7184" /></svg></div>
+        <div class="shape-cell"><svg viewBox="0 0 48 48" fill="none" stroke-width="0.6" stroke-linejoin="round"><rect x="14" y="12" width="20" height="20" fill="#c8cad4" fill-opacity="0.55" stroke="#6e7184" /><circle cx="28" cy="32" r="10" fill="#f1c0ba" fill-opacity="0.6" stroke="#c8281e" /></svg></div>
+      </div>
+    </header>
+    <section>
+      <h2>What it is</h2>
+      <p>Five short lessons teaching the moves a Claude Code user is most likely to skip past &mdash; writing a <code>CLAUDE.md</code>, invoking a slash command, sending a directive instead of chatting, reading a diff before accepting, scoping changes to a branch. The user works inside a small browser-based webcam project; each lesson surfaces one capability and asks the user to perform the move themselves on a real codebase. They earn a Bauhaus shape per lesson. The dancer takes form as the user goes.</p>
+      <p>The framing borrows from Oskar Schlemmer's Bauhaus dances (1922&ndash;1929), where dancers were constructed from geometric primitives and choreography was laid out as a score of figures.</p>
+      <table>
+        <thead><tr><th>Figure</th><th>Shape</th><th>Move</th></tr></thead>
+        <tbody>
+          <tr><td class="fig">1</td><td class="shape">Circle</td><td class="move">Write a CLAUDE.md</td></tr>
+          <tr><td class="fig">2</td><td class="shape">Triangle</td><td class="move">Try a slash command</td></tr>
+          <tr><td class="fig">3</td><td class="shape">Arc</td><td class="move">Write a directive, not a chat</td></tr>
+          <tr><td class="fig">4</td><td class="shape">Square</td><td class="move">Read the diff before you accept</td></tr>
+          <tr><td class="fig">5</td><td class="shape">Composite</td><td class="move">Make a branch, then ask</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <div class="callout"><strong>A note on hosting.</strong> The prototype is local-first &mdash; follow the README to install and run.</div>
+    </section>
+    <section class="links">
+      <h2>Source</h2>
+      <ul>
+        <li><a href="https://github.com/kandizzy/dancing-with-claude-code">Source on GitHub</a><span class="note">Code, README, run instructions.</span></li>
+      </ul>
+    </section>
+    <footer>Built by CK &middot; Influenced by Oskar Schlemmer, Aaron Kagan &amp; Charles Lassiter (<em>An Introduction to Embodied Mind</em>), and Anicka Yi.</footer>
+  </div>
+</body>
+</html>
