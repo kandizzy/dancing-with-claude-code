@@ -9,14 +9,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { LevelId, ShapeKind } from './levels/types'
-import { SEED_CLAUDE_MD } from './levels/level-1'
-import { appendNoteToMarkdown } from './levels/registry'
+import type { FigureId, ShapeKind } from './figures/types'
+import { SEED_CLAUDE_MD } from './figures/figure-1'
+import { appendNoteToMarkdown } from './figures/registry'
 import { writeClaudeMd } from './ai/client'
 
 type LearnState = {
   earnedShapes: ShapeKind[]
-  matchedAt: Partial<Record<LevelId, string>>
+  matchedAt: Partial<Record<FigureId, string>>
   // The full CLAUDE.md as a single markdown string. The user can edit this freely;
   // we parse out specific sections (Notes, Behavior) elsewhere when needed.
   claudeMd: string
@@ -25,9 +25,9 @@ type LearnState = {
 }
 
 type LearnStore = LearnState & {
-  isCompleted: (id: LevelId) => boolean
-  isUnlocked: (id: LevelId) => boolean
-  awardShape: (id: LevelId, shape: ShapeKind, evidence: string) => void
+  isCompleted: (id: FigureId) => boolean
+  isUnlocked: (id: FigureId) => boolean
+  awardShape: (id: FigureId, shape: ShapeKind, evidence: string) => void
   setClaudeMd: (text: string) => void
   appendNote: (text: string) => void
   setClaudeMdOpen: (open: boolean) => void
@@ -113,19 +113,19 @@ export function LearnProvider({ children }: { children: ReactNode }) {
   }, [state.claudeMd, hydrated])
 
   const isCompleted = useCallback(
-    (id: LevelId) => state.matchedAt[id] != null,
+    (id: FigureId) => state.matchedAt[id] != null,
     [state.matchedAt],
   )
 
   const isUnlocked = useCallback(
-    (id: LevelId) => {
+    (id: FigureId) => {
       if (id === 1) return true
-      return isCompleted((id - 1) as LevelId)
+      return isCompleted((id - 1) as FigureId)
     },
     [isCompleted],
   )
 
-  const awardShape = useCallback((id: LevelId, shape: ShapeKind, evidence: string) => {
+  const awardShape = useCallback((id: FigureId, shape: ShapeKind, evidence: string) => {
     setState((prev) => {
       if (prev.matchedAt[id]) return prev
       return {

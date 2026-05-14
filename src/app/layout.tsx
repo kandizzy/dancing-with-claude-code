@@ -22,7 +22,7 @@ const caveat = Caveat({
 })
 
 export const metadata: Metadata = {
-  title: 'Dancing with Claude',
+  title: 'Dancing with Claude Code',
   description:
     'A five-figure choreography for learning to direct Claude Code — built on Schlemmer’s Bauhaus dances.',
 }

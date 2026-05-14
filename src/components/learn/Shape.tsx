@@ -8,7 +8,7 @@ import {
   pointsToString,
   useRafLoop,
 } from '@/lib/anim'
-import type { ShapeKind } from '@/lib/levels/types'
+import type { ShapeKind } from '@/lib/figures/types'
 
 type AnimateMode = 'always' | 'hover' | 'never'
 

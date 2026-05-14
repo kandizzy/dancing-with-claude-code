@@ -1,20 +1,15 @@
 ## About this project
 
-This is a browser-based computer vision playground. It runs entirely in the user's tab — no server-side perception, no data leaves the device.
+This is a small webcam app that runs in your browser. It looks at your face through the camera and draws a box around it. Nothing leaves your tab — the detection runs locally.
 
-Detectors available:
+The library doing the face-finding is MediaPipe Tasks. We are using just the face detector (not the full landmark model, not pose, not hands).
 
-- Face detection (MediaPipe Tasks, face-landmarker)
-
-Detection output shape: `{ score: number, boundingBox: { x, y, width, height }, keypoints?: { x, y }[] }`
-
-Inputs the user can give the playground: live webcam stream or a still image they upload. The user is exploring perception — they are not a CV engineer. Treat them as a designer or student becoming literate in detector behavior.
+The person using this app might be a designer, a student, or anyone exploring how detection works. Treat them as curious, not as a computer vision engineer.
 
 ## How Claude should behave
 
-- Inspect the actual most recent detection scores before generalizing. If you have none, say so plainly.
-- When recommending a threshold, name the failure mode first (false positive vs. false negative) — never give a number without saying what it costs.
-- Stick to MediaPipe Tasks. Do not reference YOLO, OpenCV, or other libraries unless the user asks. If the user asks about an out-of-stack tool, name the closest in-stack alternative.
+- When the user asks a question about detection, look at what's actually happening on screen before generalizing. If you can't see the current state, say so.
+- When suggesting a numeric change (like a confidence threshold), say what the trade-off is. A higher number means fewer false detections but also more missed faces. Always name the trade.
+- Stick to MediaPipe. Don't suggest swapping in a different library (like OpenCV or YOLO) unless the user asks for that specifically.
 
 ## Notes
-- Smooth jitter with an EMA on `boundingBox` and keypoints: `x = α·new + (1−α)·prev`, α ≈ 0.3–0.5 (lower = smoother but laggier). For presence toggles, add hysteresis — require N frames above threshold to turn on, M below to turn off (e.g. 3 on, 5 off) to stop strobing at the edge of range.

@@ -1,6 +1,6 @@
-# Dancing with Claude
+# Dancing with Claude Code
 
-A five-figure choreography for learning to direct Claude Code. The user works inside a browser computer-vision playground; each figure surfaces one capability frequent Claude users still don't have a feel for — slash commands they never invoked, a `CLAUDE.md` they never edited, a tool call they auto-accepted. The score they write as they dance is their own CLAUDE.md, which grows asynchronously across all five figures.
+A five-figure choreography for learning to direct Claude Code. The user works inside a small browser-based webcam project; each figure surfaces one capability frequent Claude users still don't have a feel for — slash commands they never invoked, a `CLAUDE.md` they never edited, a tool call they auto-accepted. The score they write as they dance is their own CLAUDE.md, which grows asynchronously across all five figures.
 
 The progression axis is **Claude-usage sophistication**, not the perception domain. Each figure earns a Bauhaus shape; the dancer takes form as the user goes.
 
@@ -20,6 +20,7 @@ The visual language draws from **Oskar Schlemmer's Bauhaus dances** (1922–1929
 
 - **Node.js 20.18+** (declared in `package.json` `engines.node`).
 - **Recommended: Node 24.15.0 LTS** — pinned in `.nvmrc`.
+- **`ANTHROPIC_API_KEY`** in `.env.local` — the prototype routes every reply through the Claude Agent SDK locally.
 
 If you use `nvm`, `fnm`, or `asdf`, the `.nvmrc` is picked up automatically.
 
@@ -37,6 +38,23 @@ node --version   # should print v24.15.0 (or your installed 20.18+)
 
 If you don't use a version manager, install Node 24.15.0 from <https://nodejs.org/> (or your OS package manager). Anything ≥ 20.18 will work; 24.15.0 is what this prototype is tested against.
 
+## Quick start
+
+```bash
+nvm use                       # optional but recommended
+npm install
+cp .env.example .env.local    # add your ANTHROPIC_API_KEY
+npm run dev
+```
+
+Open <http://localhost:3000>.
+
+The prototype is **local-only**. The Agent SDK runs in the dev server's Node process, reads `CLAUDE.md` and `.claude/commands/` from this directory natively, and persists conversation sessions to `~/.claude/projects/`. There is no deployed mode.
+
+### Starting fresh
+
+The app stores progress (earned shapes, conversation session IDs, CLAUDE.md edits, dismissed onboarding cards) in your browser's localStorage. A fresh clone in a fresh browser sees a clean slate. If you've been testing locally and want to reset what a reviewer would see, click **Reset progress** in the footer of the landing page — it clears everything in one go.
+
 ## Practice this with your own Claude Code
 
 This repo is the project you're learning to direct. Figures 3 and 5 are designed as a round-trip: you compose a directive in the browser, run it against this cloned codebase in your own `claude` session, then paste back what Claude said to close the loop.
@@ -48,21 +66,8 @@ npm install
 claude    # opens Claude Code in this folder; it reads CLAUDE.md on start
 ```
 
-Good first moves once you're in: try `/explain-figure 1` to have Claude walk you through a figure's code, or paste a directive from Figure 3 of the deployed app and watch Claude propose the edit. See `CONTRIBUTING.md` for the fork → branch → claude → PR loop.
-
-## Quick start (deployed app)
-
-```bash
-nvm use                       # optional but recommended
-npm install
-cp .env.example .env.local    # add your ANTHROPIC_API_KEY
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-Without an `ANTHROPIC_API_KEY`, the figure-chat API returns a fingerprint-free generic reply so the gate fails honestly — set the key to unlock real Claude responses.
+Good first moves once you're in: try `/explain-figure 1` to have Claude walk you through a figure's code, or paste a directive from Figure 3 and watch Claude propose the edit. See `CONTRIBUTING.md` for the fork → branch → claude → PR loop.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS v4 · Base UI · `lucide-react` · `@anthropic-ai/sdk`
+Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS v4 · Base UI · `lucide-react` · `@anthropic-ai/claude-agent-sdk`

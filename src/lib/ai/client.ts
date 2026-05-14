@@ -1,21 +1,29 @@
 // Client-side helpers for talking to the local /api/ai route.
 
-import type { AiCallResult, AiMode } from './call'
+import type { AiCallResult } from './call'
 
 export type ClientAiInput = {
   systemPrompt: string
   userPrompt: string
-  mode?: AiMode
-  model?: string
+  // The session ID from a prior `ask()` response. Pass it back and the Agent SDK continues
+  // the same conversation with full context. Omit for a fresh start (or for single-shot
+  // callers that have no conversation to thread).
+  sessionId?: string | null
 }
 
 export async function ask(input: ClientAiInput): Promise<AiCallResult> {
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    // The route handler expects `resumeSessionId`; client-side we call it `sessionId`
+    // because callers pass the same field they previously received. Translate here.
+    body: JSON.stringify({
+      systemPrompt: input.systemPrompt,
+      userPrompt: input.userPrompt,
+      resumeSessionId: input.sessionId,
+    }),
   })
-  const body = (await res.json()) as AiCallResult | { error: string; mode?: AiMode }
+  const body = (await res.json()) as AiCallResult | { error: string }
   if (!res.ok || 'error' in body) {
     const msg = 'error' in body ? body.error : `request failed: ${res.status}`
     throw new Error(msg)
@@ -60,4 +68,30 @@ export async function readDiff(): Promise<string> {
   if (!res.ok) return ''
   const body = (await res.json()) as { diff?: string }
   return body.diff ?? ''
+}
+
+export type GitStatus = { branch: string | null; clean: boolean; available: boolean }
+
+export async function gitStatus(): Promise<GitStatus> {
+  const res = await fetch('/api/git')
+  if (!res.ok) return { branch: null, clean: false, available: false }
+  return (await res.json()) as GitStatus
+}
+
+export type GitActionResult = { ok: true } | { ok: false; error: string }
+
+export async function gitAction(
+  action: 'branch' | 'merge' | 'discard',
+  name: string,
+): Promise<GitActionResult> {
+  const res = await fetch('/api/git', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, name }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+  if (!res.ok || body.ok === false) {
+    return { ok: false, error: body.error ?? `git ${action} failed (${res.status})` }
+  }
+  return { ok: true }
 }

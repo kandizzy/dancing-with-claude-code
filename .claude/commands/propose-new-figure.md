@@ -1,10 +1,14 @@
 ---
-description: Help the user sketch a new figure that fits this prototype's pattern, naming the files they'd touch.
+description: Sketch a new figure that fits this prototype's pattern. Pass the capability — e.g. /propose-new-figure teaching the # Remember syntax.
 ---
 
-The user wants to add a sixth figure (or replace an existing one) to this prototype. The prototype currently has five — see `src/lib/levels/level-1.ts` through `level-5.ts`.
+The user wants to add a sixth figure (or replace an existing one) to this prototype. The prototype currently has five — see `src/lib/figures/figure-1.ts` through `figure-5.ts`.
 
-To sketch a new figure, walk the user through:
+**Capability the user wants to teach:** $ARGUMENTS
+
+If `$ARGUMENTS` is empty, ask the user what Claude Code capability the new figure should teach. Offer a few possibilities to spark ideas: the `# Remember:` memory syntax, `/init`, passing `--print`, running multiple `claude` instances, reading the diff before accepting. The user can answer with their pick on their next message — this conversation has memory.
+
+Otherwise, walk the user through:
 
 1. **The Claude-Code capability** the figure would teach. It should be something a real user often misses, not theoretical. (Examples: memory updates with `# Remember:`; using `/init`; passing `--print`; running multiple `claude` instances; reading the diff before accepting.) Ask which capability the user wants to teach and why.
 
@@ -15,11 +19,11 @@ To sketch a new figure, walk the user through:
 4. **The shape.** The prototype uses circle / triangle / arc / square / composite. A sixth figure needs a sixth shape — name it.
 
 5. **The files they'd touch.** At minimum:
-   - `src/lib/levels/types.ts` — add the new id to `LevelId` and the new kind to `ShapeKind`
-   - `src/lib/levels/level-N.ts` — new file with `LEVEL_N_EXTRA_SYSTEM` (if needed) and the `LevelDefinition`
-   - `src/lib/levels/registry.ts` — register the level
-   - `src/components/learn/Level{N}Workspace.tsx` — new workspace
-   - `src/app/learn/[level]/page.tsx` — wire the new workspace into the dispatcher
+   - `src/lib/figures/types.ts` — add the new id to `FigureId` and the new kind to `ShapeKind`
+   - `src/lib/figures/figure-N.ts` — new file with `FIGURE_N_EXTRA_SYSTEM` (if needed) and the `FigureDefinition`
+   - `src/lib/figures/registry.ts` — register the figure
+   - `src/components/learn/Figure{N}Workspace.tsx` — new workspace
+   - `src/app/learn/[figure]/page.tsx` — wire the new workspace into the dispatcher
    - `src/components/learn/Shape.tsx` — add the new shape geometry
    - `src/app/page.tsx` — add the new row to the figure list
 

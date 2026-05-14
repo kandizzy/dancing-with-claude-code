@@ -1,16 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { LEVELS } from '@/lib/levels/registry'
+import { FIGURES } from '@/lib/figures/registry'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
-import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
 import { ResetProgressButton } from '@/components/learn/ResetProgressButton'
-import { useLearnStore } from '@/lib/learn-store'
 import { ArrowRight } from 'lucide-react'
-import type { LevelId, ShapeKind } from '@/lib/levels/types'
+import type { FigureId, ShapeKind } from '@/lib/figures/types'
 
-const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
+const FIGURE_SHAPES: Record<FigureId, ShapeKind> = {
   1: 'circle',
   2: 'triangle',
   3: 'arc',
@@ -18,53 +16,50 @@ const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
   5: 'composite',
 }
 
-export default function Home() {
-  const { isCompleted } = useLearnStore()
-  const levels: LevelId[] = [1, 2, 3, 4, 5]
+// Landing page — five figures laid out as a row of Shapes-style cells with
+// verb-led titles below, plus a single "Let's begin" CTA that takes the user
+// to /home (the workshop floor). The figures here are ALWAYS shown in their
+// earned + animated state — a preview of what the user is working toward.
+// Actual earned/unearned state lives on /home and inside the /learn/N pages.
+export default function Landing() {
+  const figures: FigureId[] = [1, 2, 3, 4, 5]
 
   return (
-    <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-5 overflow-hidden px-6 py-6">
+    <div className="mx-auto flex h-dvh max-w-6xl flex-col gap-8 overflow-hidden px-6 py-6">
       <LearnHeader />
 
-      <p className="text-text-secondary max-w-3xl text-sm leading-relaxed">
-        A five-figure choreography for learning to direct Claude Code. The playground is the
-        stage; your <code className="font-mono text-xs">CLAUDE.md</code> is the score you write
-        as you dance. Figures are asynchronous — revisit any one, in any order.
-      </p>
-
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1.1fr)_minmax(0,_1fr)]">
-        <div className="flex min-h-0 flex-col gap-2">
-          <WebcamPlayground />
-          <p className="text-text-tertiary text-xs italic">
-            Nothing leaves your browser. Detections are decoration; what you're learning is how
-            to direct Claude about what's on the stage.
+      <div className="flex flex-1 flex-col items-center justify-center gap-10">
+        <div className="flex w-full flex-col items-center gap-3">
+          <p className="font-script text-text-tertiary text-xl italic">
+            The score before the dance
           </p>
+          <h1 className="text-text-primary max-w-3xl text-center font-serif text-3xl leading-tight">
+            Five moves for working with Claude Code, learned by doing.
+          </h1>
         </div>
 
-        <div className="border-border-soft flex min-h-0 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
-          {levels.map((id) => {
-            const def = LEVELS[id]
+        {/* Figure cells — always rendered in the earned + animated state */}
+        <div className="grid w-full max-w-5xl grid-cols-2 gap-4 md:grid-cols-5">
+          {figures.map((id) => {
+            const def = FIGURES[id]
             return (
-              <Link
+              <FigureCell
                 key={id}
-                href={`/learn/${id}`}
-                className="border-border-subtle bg-page hover:bg-state-hover group flex items-center gap-3 rounded-md border px-3 py-2.5"
-              >
-                <Shape
-                  kind={LEVEL_SHAPES[id]}
-                  size={32}
-                  earned={isCompleted(id)}
-                  animate="hover"
-                  className="shrink-0"
-                />
-                <div className="text-text-primary min-w-0 flex-1 truncate text-sm font-medium">
-                  {def.title}
-                </div>
-                <ArrowRight className="text-text-tertiary size-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
+                figureId={id}
+                shape={FIGURE_SHAPES[id]}
+                title={def.title}
+              />
             )
           })}
         </div>
+
+        <Link
+          href="/home"
+          className="bg-text-primary text-page hover:bg-text-secondary inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium transition-colors"
+        >
+          Let&apos;s begin
+          <ArrowRight className="size-4" />
+        </Link>
       </div>
 
       <footer className="flex items-center justify-between gap-4">
@@ -73,6 +68,34 @@ export default function Home() {
         </span>
         <ResetProgressButton />
       </footer>
+    </div>
+  )
+}
+
+// One figure cell: dashed pencil border, FIG.N label, the canonical shape
+// rendered in its earned + animated state, and the verb-led title beneath.
+// Matches the Shapes-tab visual grammar so the landing reads as a
+// continuation of that score.
+function FigureCell({
+  figureId,
+  shape,
+  title,
+}: {
+  figureId: FigureId
+  shape: ShapeKind
+  title: string
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="border-border-subtle relative flex aspect-square w-full items-center justify-center rounded-sm border border-dashed">
+        <span className="text-text-tertiary absolute left-3 top-2 font-mono text-[10px] uppercase tracking-widest">
+          fig. {figureId}
+        </span>
+        <Shape kind={shape} size={86} earned animate="always" />
+      </div>
+      <p className="text-text-secondary text-center font-serif text-[13px] italic leading-snug">
+        {title}
+      </p>
     </div>
   )
 }

@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation'
 import { useLearnStore } from '@/lib/learn-store'
 import { Shape } from './Shape'
 import { cn } from '@/lib/utils'
-import type { LevelId, ShapeKind } from '@/lib/levels/types'
+import type { FigureId, ShapeKind } from '@/lib/figures/types'
 import type { ComponentProps } from 'react'
 
-const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
+const FIGURE_SHAPES: Record<FigureId, ShapeKind> = {
   1: 'circle',
   2: 'triangle',
   3: 'arc',
@@ -16,12 +16,12 @@ const LEVEL_SHAPES: Record<LevelId, ShapeKind> = {
   5: 'composite',
 }
 
-const FIGURE_TITLES: Record<LevelId, string> = {
-  1: 'Figure 1 · CLAUDE.md authoring',
-  2: 'Figure 2 · Slash command discovery',
-  3: 'Figure 3 · Directive writing',
-  4: 'Figure 4 · Tool-use review',
-  5: 'Figure 5 · Scoped change',
+const FIGURE_TITLES: Record<FigureId, string> = {
+  1: 'Figure 1 · Write a CLAUDE.md',
+  2: 'Figure 2 · Try a slash command',
+  3: 'Figure 3 · Write a directive, not a chat',
+  4: 'Figure 4 · Read the diff before you accept',
+  5: 'Figure 5 · Make a branch, then ask',
 }
 
 type ShapeTrayProps = ComponentProps<'div'>
@@ -31,7 +31,7 @@ export function ShapeTray({ className, ...props }: ShapeTrayProps) {
   const pathname = usePathname()
   // Active figure id is parsed from /learn/<n>. On / it's null.
   const match = pathname?.match(/^\/learn\/(\d+)/)
-  const activeId = match ? (Number(match[1]) as LevelId) : null
+  const activeId = match ? (Number(match[1]) as FigureId) : null
 
   return (
     <nav
@@ -39,7 +39,7 @@ export function ShapeTray({ className, ...props }: ShapeTrayProps) {
       className={cn('flex items-center gap-2', className)}
       {...props}
     >
-      {([1, 2, 3, 4, 5] as LevelId[]).map((id) => {
+      {([1, 2, 3, 4, 5] as FigureId[]).map((id) => {
         const isActive = id === activeId
         return (
           <Link
@@ -52,7 +52,7 @@ export function ShapeTray({ className, ...props }: ShapeTrayProps) {
               isActive ? 'bg-state-active' : 'hover:bg-state-hover',
             )}
           >
-            <Shape kind={LEVEL_SHAPES[id]} size={28} earned={isCompleted(id)} />
+            <Shape kind={FIGURE_SHAPES[id]} size={28} earned={isCompleted(id)} />
           </Link>
         )
       })}

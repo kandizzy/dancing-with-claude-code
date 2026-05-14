@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Camera, CameraOff, Loader2, Upload } from 'lucide-react'
+import { Camera, CameraOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui'
 
 type Permission = 'idle' | 'requesting' | 'granted' | 'denied'
-type Mode = 'webcam' | 'image'
 
 type Detection = {
   bbox: { x: number; y: number; width: number; height: number }
@@ -19,27 +18,27 @@ const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
 
 type DetectorHandle = {
   detectForVideo: (video: HTMLVideoElement, ts: number) => { detections?: Array<unknown> }
-  detect: (img: HTMLImageElement | HTMLCanvasElement) => { detections?: Array<unknown> }
   close?: () => void
-  setOptions?: (options: { runningMode: 'IMAGE' | 'VIDEO' }) => void | Promise<void>
 }
 
+// The webcam panel that sits beside figures 3 and 5. It exists as a real-but-modest
+// example app the user can imagine modifying with Claude Code — MediaPipe face
+// detection running in-browser, nothing leaving the user's machine. Earlier
+// versions also accepted uploaded still images as a fallback for camera-denied
+// users; that path was removed because the lesson is the figures, not the demo,
+// and the upload affordance was attracting attention out of proportion to its
+// role.
 export function WebcamPlayground({ className }: { className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const detectorRef = useRef<DetectorHandle | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationRef = useRef<number | null>(null)
-  const runningModeRef = useRef<'IMAGE' | 'VIDEO'>('VIDEO')
 
   const [permission, setPermission] = useState<Permission>('idle')
-  const [mode, setMode] = useState<Mode>('webcam')
   const [error, setError] = useState<string | null>(null)
   const [detectorReady, setDetectorReady] = useState(false)
   const [detections, setDetections] = useState<Detection[]>([])
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   // Lazy-load MediaPipe detector on mount.
   useEffect(() => {
@@ -86,14 +85,6 @@ export function WebcamPlayground({ className }: { className?: string }) {
     }
   }
 
-  const ensureRunningMode = useCallback(async (target: 'IMAGE' | 'VIDEO') => {
-    const detector = detectorRef.current
-    if (!detector) return
-    if (runningModeRef.current === target) return
-    await detector.setOptions?.({ runningMode: target })
-    runningModeRef.current = target
-  }, [])
-
   const loop = useCallback(() => {
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -118,7 +109,6 @@ export function WebcamPlayground({ className }: { className?: string }) {
     setError(null)
     setPermission('requesting')
     try {
-      await ensureRunningMode('VIDEO')
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
@@ -130,12 +120,11 @@ export function WebcamPlayground({ className }: { className?: string }) {
         await video.play()
       }
       setPermission('granted')
-      setMode('webcam')
       loop()
-    } catch (err) {
+    } catch {
       setPermission('denied')
       setError(
-        'Camera access was blocked or unavailable. You can upload an image instead — the playground works the same way.',
+        'Camera access was blocked or unavailable. The figures still work without it — the webcam is just a small example to practice on.',
       )
     }
   }
@@ -148,43 +137,7 @@ export function WebcamPlayground({ className }: { className?: string }) {
     if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  const handleImageFile = async (file: File) => {
-    if (!detectorRef.current) return
-    stopWebcamInternal()
-    setMode('image')
-    setError(null)
-    await ensureRunningMode('IMAGE')
-    const url = URL.createObjectURL(file)
-    setImageUrl(url)
-    // Wait for the image to load, then detect.
-    const img = imageRef.current
-    if (!img) return
-    await new Promise<void>((resolve) => {
-      const onLoad = () => {
-        img.removeEventListener('load', onLoad)
-        resolve()
-      }
-      img.addEventListener('load', onLoad)
-      img.src = url
-    })
-    try {
-      const result = detectorRef.current.detect(img)
-      const dets = readDetections(result?.detections ?? [])
-      setDetections(dets)
-      const canvas = canvasRef.current
-      if (canvas) drawOverlay(canvas, img.naturalWidth, img.naturalHeight, dets)
-    } catch (err) {
-      setError(`Detection failed: ${(err as Error).message}`)
-    }
-  }
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleImageFile(file)
-  }
-
-  const showWebcamMedia = mode === 'webcam' && permission === 'granted'
-  const showImageMedia = mode === 'image' && imageUrl != null
+  const showWebcamMedia = permission === 'granted'
 
   return (
     <div
@@ -203,21 +156,13 @@ export function WebcamPlayground({ className }: { className?: string }) {
             !showWebcamMedia && 'hidden',
           )}
         />
-        <img
-          ref={imageRef}
-          alt="uploaded sample"
-          className={cn(
-            'absolute inset-0 size-full object-contain',
-            !showImageMedia && 'hidden',
-          )}
-        />
         <canvas ref={canvasRef} className="absolute inset-0 size-full" />
 
-        {!showWebcamMedia && !showImageMedia && (
+        {!showWebcamMedia && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80">
             {detectorReady ? (
               <>
-                <p className="font-script text-2xl tracking-wide">the playground</p>
+                <p className="font-script text-2xl tracking-wide">the webcam</p>
                 <p className="text-xs italic opacity-70">
                   face detection · MediaPipe Tasks · in your browser
                 </p>
@@ -259,18 +204,6 @@ export function WebcamPlayground({ className }: { className?: string }) {
             Stop
           </Button>
         )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onFileChange}
-        />
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!detectorReady}>
-          <Upload className="size-4" />
-          Upload image
-        </Button>
 
         <span className="text-text-tertiary ml-auto text-xs italic">
           Nothing leaves your browser.

@@ -25,17 +25,17 @@ fork  →  branch  →  claude  →  PR
 
 ## Good first changes
 
-- **Add a behavior rule** to the seed CLAUDE.md in `src/lib/levels/level-1.ts` that reflects a preference you discovered while using the app.
+- **Add a behavior rule** to the seed CLAUDE.md in `src/lib/figures/figure-1.ts` that reflects a preference you discovered while using the app.
 - **Add a starter slash command** under `.claude/commands/`. It will be discoverable to future users who clone this repo.
-- **Tweak the copy** on a figure's intro or task line in `src/lib/levels/level-N.ts` so the lesson lands better for someone like you.
+- **Tweak the copy** on a figure's intro or task line in `src/lib/figures/figure-N.ts` so the lesson lands better for someone like you.
 - **Propose a new figure.** Run `/propose-new-figure` in `claude` to sketch one; the slash command will name the files you'd touch.
 
 ## What lives where
 
 - `src/app/page.tsx` — the home / figure index
-- `src/app/learn/[level]/page.tsx` — per-figure layout shell
-- `src/components/learn/Level{1..5}Workspace.tsx` — the workspace for each figure
-- `src/lib/levels/level-{1..5}.ts` — copy + system-prompt extras per figure
+- `src/app/learn/[figure]/page.tsx` — per-figure layout shell
+- `src/components/learn/Figure{1..5}Workspace.tsx` — the workspace for each figure
+- `src/lib/figures/figure-{1..5}.ts` — copy + system-prompt extras per figure
 - `src/lib/learn-store.tsx` — earned-shape state, CLAUDE.md state, persistence
 - `src/components/learn/WebcamPlayground.tsx` — MediaPipe Tasks face detection in the browser
 - `src/components/explore/` — the SVG-animation sandbox (Tier 3 dancer is being prototyped here)

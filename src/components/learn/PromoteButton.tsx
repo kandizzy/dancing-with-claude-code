@@ -100,11 +100,11 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
           setOpen(true)
         }}
         className={cn(
-          'text-text-tertiary hover:text-text-primary flex items-center gap-1 text-xs',
+          'border-border-subtle text-text-secondary hover:text-text-primary hover:border-text-tertiary inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
           className,
         )}
       >
-        <FilePlus className="size-3" />
+        <FilePlus className="size-3.5" />
         Add to CLAUDE.md
       </button>
 
@@ -133,9 +133,9 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
             </header>
 
             <p className="text-text-secondary m-0 text-xs leading-relaxed">
-              Edit this down to the part you want Claude to remember. The shorter and more
-              specific the note, the more likely it shows up in the next reply. Saving appends
-              it under <code className="font-mono text-[11px]">## Notes</code>.
+              Trim this to the part you actually want Claude to remember. Short and specific
+              lands; long and vague gets ignored. Saving appends it under{' '}
+              <code className="font-mono text-[11px]">## Notes</code>.
             </p>
 
             <textarea

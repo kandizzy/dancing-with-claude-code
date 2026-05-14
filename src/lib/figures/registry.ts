@@ -1,27 +1,27 @@
-import type { LevelDefinition, LevelId } from './types'
-import { level1 } from './level-1'
-import { level2 } from './level-2'
-import { level3 } from './level-3'
-import { level4 } from './level-4'
-import { level5 } from './level-5'
+import type { FigureDefinition, FigureId } from './types'
+import { figure1 } from './figure-1'
+import { figure2 } from './figure-2'
+import { figure3 } from './figure-3'
+import { figure4 } from './figure-4'
+import { figure5 } from './figure-5'
 
-export const LEVELS: Record<LevelId, LevelDefinition> = {
-  1: level1,
-  2: level2,
-  3: level3,
-  4: level4,
-  5: level5,
+export const FIGURES: Record<FigureId, FigureDefinition> = {
+  1: figure1,
+  2: figure2,
+  3: figure3,
+  4: figure4,
+  5: figure5,
 }
 
-export function getLevel(id: number): LevelDefinition | null {
+export function getFigure(id: number): FigureDefinition | null {
   if (id < 1 || id > 5) return null
-  return LEVELS[id as LevelId] ?? null
+  return FIGURES[id as FigureId] ?? null
 }
 
 // --- System prompt assembly ------------------------------------------------
 
 export function assembleSystemPrompt(claudeMd: string, extra?: string): string {
-  const base = `You are Claude, helping a user explore a browser-based computer vision playground. The user's project has a CLAUDE.md attached. Treat it as authoritative project context.
+  const base = `You are Claude, helping a user explore a small webcam project they have cloned locally — a browser-based face-detection app built on MediaPipe Tasks. The user's project has a CLAUDE.md attached. Treat it as authoritative project context.
 
 The full contents of CLAUDE.md follow between the markers.
 

@@ -4,7 +4,7 @@ import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
 import { ChevronDown, FileText } from 'lucide-react'
 import { MarkdownEditor } from './MarkdownEditor'
-import { getNoteEntries } from '@/lib/levels/registry'
+import { getNoteEntries } from '@/lib/figures/registry'
 import type { ComponentProps } from 'react'
 
 type ClaudeMdDrawerProps = ComponentProps<'div'>
@@ -32,10 +32,10 @@ export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
         <span className="text-text-secondary font-mono">CLAUDE.md</span>
         <span className="text-text-tertiary">·</span>
         <span className="text-text-tertiary">
-          {noteCount} note{noteCount === 1 ? '' : 's'}
+          {noteCount} note{noteCount === 1 ? '' : 's'} so far
         </span>
         <span className="text-text-tertiary ml-auto hidden italic sm:inline">
-          Claude reads this on every reply.
+          Claude reads this on every reply. Add to it from any figure.
         </span>
         <ChevronDown
           className={cn(

@@ -1,19 +1,23 @@
-import { callAi, type AiCallInput, type AiMode } from '@/lib/ai/call'
+import { callAi, type AiCallInput } from '@/lib/ai/call'
 
-// Node runtime — the CLI bridge uses child_process.spawn, which the edge runtime can't run.
+// Node runtime — the Agent SDK uses child_process internally, which the edge runtime can't run.
 export const runtime = 'nodejs'
 
 type Body = {
-  mode?: AiMode
   systemPrompt: string
   userPrompt: string
-  model?: string
+  // Returned by a previous response's `sessionId`. Threads conversation continuity through
+  // the Agent SDK. Omit for a fresh start.
+  resumeSessionId?: string | null
 }
 
-function pickMode(requested: AiMode | undefined): AiMode {
-  if (requested) return requested
-  // Default by environment: local dev → CLI, anything deployed → API.
-  return process.env.NODE_ENV === 'production' ? 'api' : 'cli'
+function sanitizeSessionId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim()
+  // Cheap shape check — the SDK's IDs look like UUIDs. Don't echo arbitrary strings
+  // (or worse, prompt-injected fragments) into the SDK's resume parameter.
+  if (!/^[a-zA-Z0-9_\-]{8,128}$/.test(trimmed)) return undefined
+  return trimmed
 }
 
 export async function POST(req: Request) {
@@ -32,22 +36,12 @@ export async function POST(req: Request) {
     )
   }
 
-  const mode = pickMode(body.mode)
-
-  // CLI mode can't ship to production — it spawns a process on the dev machine.
-  if (mode === 'cli' && process.env.NODE_ENV === 'production') {
-    return Response.json(
-      { error: 'CLI mode is unavailable in production. Use API mode or run locally.' },
-      { status: 400 },
-    )
-  }
-
   const input: AiCallInput = {
-    mode,
     systemPrompt,
     userPrompt,
-    model: body.model,
-    // CLI uses the dev server's cwd, which is the prototype directory when started via `npm run dev`.
+    resumeSessionId: sanitizeSessionId(body.resumeSessionId),
+    // The Agent SDK reads CLAUDE.md and .claude/commands/ from cwd, which is the prototype
+    // directory when started via `npm run dev`.
     cwd: process.cwd(),
   }
 
@@ -56,6 +50,6 @@ export async function POST(req: Request) {
     return Response.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'callAi failed'
-    return Response.json({ error: message, mode }, { status: 500 })
+    return Response.json({ error: message }, { status: 500 })
   }
 }
