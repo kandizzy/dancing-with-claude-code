@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { Stage } from './Stage'
 import { useRafLoop } from '@/lib/anim'
 
+// ============================================================================
 // Schlemmer-key marionette. Strictly the five earned shapes, matching the
 // Shapes tab's geometry, gradient, ink stroke, and edge filter.
 //
@@ -11,54 +12,82 @@ import { useRafLoop } from '@/lib/anim'
 //   SQUARE (fig.4, black stage)       → torso
 //   COMPOSITE (fig.5, red + blue)     → arms, slightly different sizes to
 //                                       suggest 3D rotation
-//   ARC (fig.3, yellow tertiary)      → skirt, vertically arranged ribs of
-//                                       curved strokes
+//   ARC (fig.3, yellow tertiary)      → skirt, rendered as TILED COPIES of
+//                                       the fig.3 card itself (mini cards,
+//                                       overlapping in a row)
 //   TRIANGLE (fig.2, blue secondary)  → legs, wide top, squat
+// ============================================================================
+
+// ============================================================================
+// Vertex / parameter vocabulary — reference these names when iterating.
 //
-// No rods, no internal lines, no hem strokes. The five shapes do the work.
+//   Spine & canvas:    W, H, SPINE_X
+//   Head:              HEAD_R, HEAD_CY
+//   Torso:             TORSO_SIZE, TORSO_TOP_Y, TORSO_TILT
+//                      (derived: TORSO_LEFT_X, TORSO_RIGHT_X, TORSO_BOTTOM_Y)
+//   Arms:              ARM_Y, ARM_SIZE_LEFT, ARM_SIZE_RIGHT
+//   Skirt (tiles):     SKIRT_TILE_COUNT, SKIRT_TILE_SIZE,
+//                      SKIRT_TILE_OVERLAP, SKIRT_Y, SKIRT_HORIZONTAL_SPREAD,
+//                      SKIRT_TILT_PER_TILE
+//   Legs (triangle vertices: TOP_LEFT, TOP_RIGHT, APEX):
+//                      LEG_OFFSET, LEG_TOP_HALF_WIDTH, LEG_HEIGHT
+//                      (derived: LEG_TOP_Y, LEG_APEX_Y)
+//
+// Example feedback I can act on:
+//   "Make the head 10% smaller"            → adjust HEAD_R
+//   "Push leg APEX out from spine by 6px"  → adjust LEG_OFFSET or per-leg sign
+//   "Tilt the torso 4° clockwise"          → adjust TORSO_TILT
+//   "Skirt tiles overlap more"             → adjust SKIRT_TILE_OVERLAP
+//   "Add a 6th skirt tile"                 → adjust SKIRT_TILE_COUNT
+// ============================================================================
 
 const W = 360
 const H = 460
 const SPINE_X = 180
 const INK = 'var(--color-stage)'
 
-// HEAD — sits ON the torso (bottom of head circle tangent to top of torso)
+// HEAD — circle, sits ON the torso (tangent at top of torso)
 const HEAD_R = 46
 const HEAD_CY = 80
 
-// TORSO — square, the visual mass
+// TORSO — square, the visual mass. TORSO_TILT in degrees, signed.
 const TORSO_SIZE = 96
-const TORSO_TOP_Y = HEAD_CY + HEAD_R // tangent, no overlap
+const TORSO_TOP_Y = HEAD_CY + HEAD_R
+const TORSO_TILT = 0
 const TORSO_LEFT_X = SPINE_X - TORSO_SIZE / 2
 const TORSO_RIGHT_X = SPINE_X + TORSO_SIZE / 2
 const TORSO_BOTTOM_Y = TORSO_TOP_Y + TORSO_SIZE
 
-// ARMS — two composites, slightly different sizes (turn illusion)
+// ARMS — composites, slightly different sizes (turn illusion)
 const ARM_Y = TORSO_TOP_Y + TORSO_SIZE * 0.30
 const ARM_SIZE_RIGHT = 84
-const ARM_SIZE_LEFT = 76 // ~10% smaller — reads as "farther from viewer"
+const ARM_SIZE_LEFT = 76
 
-// SKIRT — a stack of canonical fig.3 semicircles (domes opening downward).
-// Each is the literal fig.3 arc shape — a semicircle on a circle whose
-// radius = half the endpoint-to-endpoint distance. Stacked vertically and
-// gently widening, they read as a layered skirt.
-const SKIRT_TOP_Y = TORSO_BOTTOM_Y - 2
-const SKIRT_BAND_COUNT = 4
-const SKIRT_BAND_GAP = 18
-const SKIRT_ARC_COUNT = SKIRT_BAND_COUNT
-const SKIRT_BOTTOM_Y = SKIRT_TOP_Y + (SKIRT_BAND_COUNT - 1) * SKIRT_BAND_GAP
-// Narrower range so each dome reads clearly as a fig.3 semicircle.
-const SKIRT_WAIST_HALF_WIDTH = 52
-const SKIRT_HEM_HALF_WIDTH = 78
-const SKIRT_HALF_WIDTH = SKIRT_HEM_HALF_WIDTH // for wash sizing
+// SKIRT — TILED COPIES of the fig.3 card. Each tile is a miniature of the
+// fig.3 cell from the Shapes tab: dashed pencil border, "FIG. 3" label,
+// the arc shape, soft yellow wash. Tiles overlap horizontally and shift
+// slightly down/rotated to read as a single skirt rather than discrete cards.
+const SKIRT_TILE_COUNT = 4
+const SKIRT_TILE_SIZE = 96 // px square per tile — larger so the row overlaps both torso and legs
+const SKIRT_TILE_OVERLAP = 32 // px each tile overlaps the previous one
+const SKIRT_Y = TORSO_BOTTOM_Y - 14 // top edge pulled up into the torso
+const SKIRT_HORIZONTAL_SPREAD =
+  SKIRT_TILE_SIZE + (SKIRT_TILE_COUNT - 1) * (SKIRT_TILE_SIZE - SKIRT_TILE_OVERLAP)
+const SKIRT_LEFT_X = SPINE_X - SKIRT_HORIZONTAL_SPREAD / 2
+const SKIRT_TILT_PER_TILE = -2 // degrees of rotation accumulated per tile
 
-// LEGS — wide-at-top upside-down triangles. Squat aspect.
-const LEG_TOP_Y = SKIRT_BOTTOM_Y + 4 // tuck just below the bottom arc
-const LEG_FOOT_Y = LEG_TOP_Y + 56 // shorter
-const LEG_TOP_HALF_WIDTH = 36 // wider at top
-const LEG_OFFSET = 30 // close together
+// LEGS — two upside-down triangles. Vertex names:
+//   TOP_LEFT  = top-left corner of the triangle's base (at LEG_TOP_Y)
+//   TOP_RIGHT = top-right corner of the triangle's base (at LEG_TOP_Y)
+//   APEX      = bottom point of the triangle (at LEG_TOP_Y + LEG_HEIGHT)
+// Wide top, squat aspect.
+const LEG_OFFSET = 36 // x-offset from spine to each leg's center
+const LEG_TOP_HALF_WIDTH = 36 // half-width of the triangle's base
+const LEG_HEIGHT = 56 // vertical distance from top edge to APEX
+const LEG_TOP_Y = TORSO_BOTTOM_Y + SKIRT_TILE_SIZE - 28 // legs tuck up into the skirt
+const LEG_APEX_Y = LEG_TOP_Y + LEG_HEIGHT
 
-const FLOOR = LEG_FOOT_Y + 6
+const FLOOR = LEG_APEX_Y + 8
 
 const BODY_BREATH_MS = 6800
 const ARMS_SWAY_MS = 8400
@@ -107,7 +136,6 @@ export function Dancer() {
               <stop offset="70%" stopColor="var(--color-accent)" stopOpacity="0.05" />
               <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
             </radialGradient>
-            {/* Canonical shape fills — match ShapesShowcase exactly */}
             <linearGradient id="dancer-head-fill" x1="50%" y1="0%" x2="50%" y2="100%">
               <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.08} />
               <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0.22} />
@@ -128,9 +156,7 @@ export function Dancer() {
               <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity={0.08} />
               <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity={0.22} />
             </linearGradient>
-            {/* Yellow ambient wash that sits behind the skirt arcs — matches
-                the yellow cell wash behind fig.3 in ShapesShowcase. */}
-            <radialGradient id="dancer-skirt-wash" cx="50%" cy="50%" r="55%">
+            <radialGradient id="dancer-skirt-tile-wash" cx="50%" cy="50%" r="55%">
               <stop offset="0%" stopColor="var(--color-tertiary)" stopOpacity={0.32} />
               <stop offset="60%" stopColor="var(--color-tertiary)" stopOpacity={0.14} />
               <stop offset="100%" stopColor="var(--color-tertiary)" stopOpacity={0} />
@@ -141,7 +167,6 @@ export function Dancer() {
             </filter>
           </defs>
 
-          {/* Spotlight pool */}
           <circle
             ref={spotlightRef}
             cx={SPINE_X}
@@ -151,7 +176,6 @@ export function Dancer() {
           />
 
           <g ref={bodyRef}>
-            {/* Floor */}
             <line
               x1={32}
               x2={W - 32}
@@ -161,14 +185,13 @@ export function Dancer() {
               strokeWidth={0.5}
             />
 
-            {/* TWO TRIANGLES (LEGS) — wide top, squat. Drawn first so the
-                bottom of the skirt overlaps their tops. */}
+            {/* TWO TRIANGLES (LEGS) */}
             <g filter="url(#dancer-edge)">
               {[-1, 1].map((side) => {
                 const cxTop = SPINE_X + side * LEG_OFFSET
-                const tl = `${cxTop - LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}`
-                const tr = `${cxTop + LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}`
-                const apex = `${cxTop},${LEG_FOOT_Y}`
+                const tl = `${cxTop - LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}` // TOP_LEFT
+                const tr = `${cxTop + LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}` // TOP_RIGHT
+                const apex = `${cxTop},${LEG_APEX_Y}` // APEX
                 return (
                   <polygon
                     key={side}
@@ -182,56 +205,55 @@ export function Dancer() {
               })}
             </g>
 
-            {/* SKIRT — a stack of canonical fig.3 arcs (smile-shapes opening
-                upward). Each arc uses the LITERAL fig.3 stroke: black ink
-                (var(--color-stage)) at stroke-width 0.7, no fill. A soft
-                yellow wash sits behind the stack as the ambient color,
-                matching how fig.3's cell has a yellow wash behind the
-                black-ink curve. The canonical fig.3 path is:
-                  d="M 6 36 A 18 18 0 0 1 42 36"
-                We render the same A-command at scaled widths, widening as
-                the stack descends. */}
-
-            {/* Yellow wash — ambient skirt color, matches fig.3's cell wash */}
-            <ellipse
-              cx={SPINE_X}
-              cy={(SKIRT_TOP_Y + SKIRT_BOTTOM_Y) / 2 + 4}
-              rx={SKIRT_HALF_WIDTH + 12}
-              ry={(SKIRT_BOTTOM_Y - SKIRT_TOP_Y) / 2 + 16}
-              fill="url(#dancer-skirt-wash)"
-            />
-
-            <g filter="url(#dancer-edge)">
-              {Array.from({ length: SKIRT_ARC_COUNT }).map((_, i) => {
-                const t = SKIRT_ARC_COUNT === 1 ? 0 : i / (SKIRT_ARC_COUNT - 1)
-                const halfW =
-                  SKIRT_WAIST_HALF_WIDTH +
-                  (SKIRT_HEM_HALF_WIDTH - SKIRT_WAIST_HALF_WIDTH) * t
-                const yEnd = SKIRT_TOP_Y + i * SKIRT_BAND_GAP
-                // Canonical fig.3 path: "M 6 36 A 18 18 0 0 1 42 36".
-                // Endpoints span 36; radius = 18 = half the span. This is a
-                // semicircle (180° arc) opening downward — a dome. We
-                // preserve those exact proportions: radius = halfW, so each
-                // skirt arc is a fig.3-proportioned semicircle scaled to
-                // its band width.
-                return (
-                  <path
-                    key={i}
-                    d={`
-                      M ${SPINE_X - halfW} ${yEnd}
-                      A ${halfW} ${halfW} 0 0 1 ${SPINE_X + halfW} ${yEnd}
-                    `}
-                    fill="none"
-                    stroke="var(--color-stage)"
-                    strokeWidth={0.9}
-                    strokeLinecap="round"
-                  />
-                )
-              })}
+            {/* SKIRT — four copies of the canonical fig.3 arc placed in a
+                horizontal row, overlapping. Just the arc shape itself —
+                black ink stroke, yellow wash behind. No card chrome, no
+                labels. The arcs ARE the skirt; their tiling is what reads
+                as costume mass. */}
+            <g>
+              {/* Single yellow wash spanning the whole skirt row */}
+              <ellipse
+                cx={SPINE_X}
+                cy={SKIRT_Y + SKIRT_TILE_SIZE / 2}
+                rx={SKIRT_HORIZONTAL_SPREAD / 2 + 6}
+                ry={SKIRT_TILE_SIZE * 0.45}
+                fill="url(#dancer-skirt-tile-wash)"
+              />
+              <g filter="url(#dancer-edge)">
+                {Array.from({ length: SKIRT_TILE_COUNT }).map((_, i) => {
+                  const tileX =
+                    SKIRT_LEFT_X + i * (SKIRT_TILE_SIZE - SKIRT_TILE_OVERLAP)
+                  const tileCenterX = tileX + SKIRT_TILE_SIZE / 2
+                  const tileCenterY = SKIRT_Y + SKIRT_TILE_SIZE / 2
+                  // Rotation: tiles on the LEFT half rotate -90° (counter-
+                  // clockwise), tiles on the RIGHT half rotate +90°
+                  // (clockwise). Domes-up become vertical brackets meeting
+                  // in the middle: “)(” on the left half, “()” on the right.
+                  const isLeftHalf = i < SKIRT_TILE_COUNT / 2
+                  const rotation = isLeftHalf ? -90 : 90
+                  const scale = (SKIRT_TILE_SIZE * 0.85) / 48
+                  const offsetX = tileX + (SKIRT_TILE_SIZE * 0.075)
+                  const offsetY = SKIRT_Y + (SKIRT_TILE_SIZE * 0.075)
+                  return (
+                    <g
+                      key={i}
+                      transform={`rotate(${rotation} ${tileCenterX} ${tileCenterY}) translate(${offsetX} ${offsetY}) scale(${scale})`}
+                    >
+                      <path
+                        d="M 6 36 A 18 18 0 0 1 42 36"
+                        fill="none"
+                        stroke={INK}
+                        strokeWidth={1.0}
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )
+                })}
+              </g>
             </g>
 
             {/* SQUARE (TORSO) */}
-            <g filter="url(#dancer-edge)">
+            <g filter="url(#dancer-edge)" transform={TORSO_TILT !== 0 ? `rotate(${TORSO_TILT} ${SPINE_X} ${TORSO_TOP_Y + TORSO_SIZE / 2})` : undefined}>
               <rect
                 x={TORSO_LEFT_X}
                 y={TORSO_TOP_Y}
@@ -244,9 +266,7 @@ export function Dancer() {
               />
             </g>
 
-            {/* TWO COMPOSITES (ARMS) — slightly different sizes to suggest
-                3D rotation. Right arm renders canonical; left arm is
-                mirrored AND slightly smaller. */}
+            {/* TWO COMPOSITES (ARMS) */}
             <g ref={armsRef} filter="url(#dancer-edge)">
               {[
                 { side: 1, size: ARM_SIZE_RIGHT },
@@ -312,7 +332,7 @@ export function Dancer() {
               })}
             </g>
 
-            {/* CIRCLE (HEAD) — sits ON the torso (bottom tangent to top edge) */}
+            {/* CIRCLE (HEAD) */}
             <g filter="url(#dancer-edge)">
               <circle
                 cx={SPINE_X}
