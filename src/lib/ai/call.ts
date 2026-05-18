@@ -21,6 +21,38 @@ export type AiCallInput = {
 }
 
 /**
+ * If the SDK returns the assistant's reply wrapped in a JSON envelope
+ * (e.g. `{"text": "...", "sessionId": "..."}` as a literal string), unwrap
+ * one layer. This started happening at some point in mid-2026 with some
+ * SDK / model combinations — the model produces a JSON-shaped string instead
+ * of plain prose. We detect it heuristically: text that starts with `{`, ends
+ * with `}`, parses as JSON, and has a `text` field of its own.
+ *
+ * Defensive only. If the unwrap doesn't apply, return the original text
+ * untouched. Generic JSON that isn't shaped like our result envelope (no
+ * `text` field) is also left alone — we don't want to eat Claude's legitimate
+ * JSON-flavored answers.
+ */
+function unwrapJsonEnvelope(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return raw
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+    if (
+      typeof parsed === 'object' &&
+      parsed != null &&
+      'text' in parsed &&
+      typeof (parsed as { text: unknown }).text === 'string'
+    ) {
+      return (parsed as { text: string }).text
+    }
+  } catch {
+    // Not valid JSON — leave the original alone.
+  }
+  return raw
+}
+
+/**
  * Run one turn against Claude via the Agent SDK.
  *
  * The prototype runs locally only. Auth comes from `ANTHROPIC_API_KEY` in the dev
@@ -40,7 +72,7 @@ export async function callAi(input: AiCallInput): Promise<AiCallResult> {
     allowedTools: input.allowedTools,
   })
   return {
-    text: result.text,
+    text: unwrapJsonEnvelope(result.text),
     ...(result.sessionId ? { sessionId: result.sessionId } : {}),
   }
 }

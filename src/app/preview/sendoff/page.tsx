@@ -10,7 +10,13 @@
  *
  * Visit at /preview/sendoff. Not linked from anywhere in the prototype — it's
  * a developer convenience, not a user-facing route.
+ *
+ * Marked 'use client' because we pass an `onReset` function down to the
+ * Sendoff component, which is a Client Component. Function props can't
+ * cross the server/client boundary.
  */
+
+'use client'
 
 import { Sendoff } from '@/components/learn/Sendoff'
 

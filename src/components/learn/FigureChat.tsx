@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
-import { ask } from '@/lib/ai/client'
+import { ask, isOverloadedError } from '@/lib/ai/client'
 import { findUserEntryMatch } from '@/lib/figures/registry'
 import type { FigureDefinition } from '@/lib/figures/types'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
-import { ArrowUp, Check, FilePlus, HelpCircle, Loader2 } from 'lucide-react'
+import { ArrowUp, Check, FilePlus, HelpCircle, Loader2, Trash2 } from 'lucide-react'
 import { PromoteButton } from './PromoteButton'
+import { OverloadNotice } from './OverloadNotice'
 import { Button } from '@/components/ui'
 
 type FigureChatProps = {
@@ -25,6 +26,49 @@ type RenderedMessage = {
   role: 'user' | 'assistant'
   content: string
   matchedText?: string | null
+}
+
+/**
+ * Defensive validator for messages rehydrating from localStorage. Drops anything
+ * that doesn't look like a normal rendered message, including:
+ *   - Missing or non-string id/role/content
+ *   - Roles other than user/assistant
+ *   - Empty content
+ *   - Content that's literally the SDK result envelope serialized as a string
+ *     (`{"text": "...", "sessionId": "..."}`), which has appeared in the wild
+ *     when an SDK error path packaged its own envelope into the text field.
+ *     This shape is impossible to produce from a healthy reply, so dropping it
+ *     on load is safe.
+ *
+ * Without this, a single bad message that lands in storage persists across
+ * reloads forever, leaving the chat looking permanently broken — confusing
+ * for reviewers and especially for students who lack the devtools knowledge
+ * to clear localStorage manually.
+ */
+function isValidMessage(m: unknown): m is RenderedMessage {
+  if (typeof m !== 'object' || m === null) return false
+  const obj = m as Record<string, unknown>
+  if (typeof obj.id !== 'string' || !obj.id) return false
+  if (obj.role !== 'user' && obj.role !== 'assistant') return false
+  if (typeof obj.content !== 'string' || !obj.content.trim()) return false
+  // Reject SDK-envelope-shaped content.
+  const trimmed = obj.content.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        'text' in parsed &&
+        'sessionId' in parsed
+      ) {
+        return false
+      }
+    } catch {
+      // Not JSON — it's fine.
+    }
+  }
+  return true
 }
 
 const SYSTEM_PROMPT = `You are Claude, helping a user explore a small webcam project they have cloned locally. It's a browser-based face-detection app built on MediaPipe Tasks. The user's project has a CLAUDE.md file you should treat as authoritative project context — the Agent SDK reads it from disk for you. The "## Notes" section of CLAUDE.md is where the user records their own preferences and discoveries.
@@ -58,6 +102,12 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   const [messages, setMessages] = useState<RenderedMessage[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  // When a 529 fires, capture the text that triggered it so the Retry button
+  // can re-run the same send. Cleared on success or when the user types a new
+  // question. Held separately from `messages` so the chat history stays clean
+  // — the user sees their question above and the overload notice below it,
+  // not an Error: … assistant turn that they'd have to manually delete.
+  const [overloadFor, setOverloadFor] = useState<string | null>(null)
   // The Agent SDK session ID for this conversation, scoped per figure so each
   // workspace has its own conversation surface. Rehydrated from localStorage on mount.
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -75,6 +125,11 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   // to a blank chat while Claude still remembers everything — causing replies that
   // reference "earlier" turns the user can't see. Storage keys are figure-scoped
   // because FigureChat is reused across multiple figure pages.
+  //
+  // Every rehydrated message is validated via isValidMessage(); malformed entries
+  // are silently dropped. This catches the case where a transient API failure left
+  // a corrupted message in storage — without it, that bad message would persist
+  // across reloads and leave the chat looking broken to anyone who hits it.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const storedSession = window.localStorage.getItem(sessionStorageKey)
@@ -82,8 +137,11 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
     const storedMessages = window.localStorage.getItem(messagesStorageKey)
     if (storedMessages) {
       try {
-        const parsed = JSON.parse(storedMessages) as RenderedMessage[]
-        if (Array.isArray(parsed)) setMessages(parsed)
+        const parsed = JSON.parse(storedMessages) as unknown
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(isValidMessage)
+          setMessages(valid)
+        }
       } catch {
         // Corrupted JSON — ignore and let the chat start fresh.
       }
@@ -132,9 +190,18 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
       const trimmed = text.trim()
       if (!trimmed) return
 
-      const userMsg: RenderedMessage = { id: crypto.randomUUID(), role: 'user', content: trimmed }
-      setMessages((m) => [...m, userMsg])
-      setInput('')
+      // Two send paths land here: a fresh user message from the textarea, and a
+      // Retry on a 529. For the fresh path we append a new user message; for the
+      // retry path the user message is already on screen (the previous attempt),
+      // so we just re-run without duplicating it. We distinguish by checking
+      // whether trimmed equals the pending overloadFor text.
+      const isRetry = overloadFor != null && overloadFor === trimmed
+      if (!isRetry) {
+        const userMsg: RenderedMessage = { id: crypto.randomUUID(), role: 'user', content: trimmed }
+        setMessages((m) => [...m, userMsg])
+        setInput('')
+      }
+      setOverloadFor(null)
       setStreaming(true)
 
       try {
@@ -163,23 +230,50 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
           awardShape(figure.id, figure.shape, matched)
         }
       } catch (err) {
-        const errMsg =
-          (err as Error)?.message ?? 'Request failed. Check your terminal for details.'
-        setMessages((m) => [
-          ...m,
-          { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errMsg}` },
-        ])
+        // 529 overloads get a calm dedicated UI with a Retry button instead of
+        // an inline "Error: …" message in the chat. Everything else falls
+        // through to the generic error-as-assistant-message path.
+        if (isOverloadedError(err)) {
+          setOverloadFor(trimmed)
+        } else {
+          const errMsg =
+            (err as Error)?.message ?? 'Request failed. Check your terminal for details.'
+          setMessages((m) => [
+            ...m,
+            { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errMsg}` },
+          ])
+        }
       } finally {
         setStreaming(false)
       }
     },
-    [figure, awardShape, completed, claudeMd, sessionId, sessionStorageKey, onMatchedText],
+    [figure, awardShape, completed, claudeMd, sessionId, sessionStorageKey, onMatchedText, overloadFor],
   )
 
   const onPickStarter = (text: string) => {
     appendNote(text)
     setClaudeMdOpen(true)
   }
+
+  /**
+   * Clear this chat's visible history AND the SDK-side session. "Clear" here
+   * means: forget this conversation, start fresh — but keep all earned shapes,
+   * the CLAUDE.md, and progress through the figures (those live in the learn
+   * store, not the chat). Lighter than Reset Progress, which wipes everything.
+   *
+   * The student-facing case for this: a transient API error left a confusing
+   * message in the chat, and they need a one-click way to recover without
+   * losing what they've earned.
+   */
+  const clearConversation = useCallback(() => {
+    setMessages([])
+    setSessionId(null)
+    setOverloadFor(null)
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(sessionStorageKey)
+      window.localStorage.removeItem(messagesStorageKey)
+    }
+  }, [sessionStorageKey, messagesStorageKey])
 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
   const showSuccess = completed && lastAssistant?.matchedText
@@ -280,6 +374,15 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
             </div>
           </ClaudeMessage>
         )}
+
+        {/* 529 overload affordance — only shown when a send hit a 529 AND a
+           retry isn't currently in flight. The Retry button re-runs the same
+           handleSend with the captured text. */}
+        {overloadFor && !streaming && (
+          <div className="mt-3">
+            <OverloadNotice onRetry={() => handleSend(overloadFor)} />
+          </div>
+        )}
       </div>
 
       {showSuccess && (
@@ -321,7 +424,24 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
           disabled={streaming}
           className="text-text-primary font-text placeholder:text-text-tertiary w-full resize-none border-none bg-transparent p-0 text-sm leading-snug outline-none"
         />
-        <div className="mt-2 flex items-center justify-end gap-2">
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {/* Clear-conversation button — only shown when there's actually a
+             conversation to clear. Sits opposite the Send button so it reads
+             as a paired action: this side starts over, that side advances. */}
+          {messages.length > 0 ? (
+            <button
+              type="button"
+              onClick={clearConversation}
+              disabled={streaming}
+              className="text-text-tertiary hover:text-text-primary inline-flex items-center gap-1 text-xs disabled:opacity-50"
+              aria-label="Clear conversation"
+            >
+              <Trash2 className="size-3" />
+              Clear conversation
+            </button>
+          ) : (
+            <span />
+          )}
           <Button
             size="icon"
             variant="primary"

@@ -1,12 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useLearnStore } from '@/lib/learn-store'
-import { ask, gitAction, gitStatus, readDiff, type GitStatus } from '@/lib/ai/client'
+import { ask, gitAction, gitStatus, readDiff, isOverloadedError, type GitStatus } from '@/lib/ai/client'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
-import { Shape } from './Shape'
-import { Dancer } from '@/components/explore/Dancer'
+import { Sendoff } from './Sendoff'
+import { OverloadNotice } from './OverloadNotice'
 import { Button } from '@/components/ui'
 import {
   ArrowRight,
@@ -58,8 +57,6 @@ const STARTERS: Array<{ goal: string; scope: string }> = [
   },
 ]
 
-const STARTER_GOALS = STARTERS.map((s) => s.goal)
-
 export function Figure5Workspace({ figure }: Props) {
   const { awardShape, isCompleted } = useLearnStore()
   const completed = isCompleted(figure.id)
@@ -70,6 +67,9 @@ export function Figure5Workspace({ figure }: Props) {
   const [directive, setDirective] = useState('')
   const [refining, setRefining] = useState(false)
   const [refineError, setRefineError] = useState<string | null>(null)
+  // When the Refine-with-Claude call hits a 529, set this flag to render
+  // the OverloadNotice with a Retry button instead of the red refineError.
+  const [refineOverload, setRefineOverload] = useState(false)
 
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
@@ -80,6 +80,8 @@ export function Figure5Workspace({ figure }: Props) {
   const [runningClaude, setRunningClaude] = useState(false)
   const [claudeOutput, setClaudeOutput] = useState<string | null>(null)
   const [claudeError, setClaudeError] = useState<string | null>(null)
+  // 529 tracking for the Run-claude-p call. Same pattern as refineOverload.
+  const [runOverload, setRunOverload] = useState(false)
 
   const [diffText, setDiffText] = useState<string | null>(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
@@ -88,14 +90,10 @@ export function Figure5Workspace({ figure }: Props) {
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
   const [decision, setDecision] = useState<'merged' | 'discarded' | null>(null)
 
-  // Edit-directive modal state. Replaces the OS-level window.prompt that didn't match the
-  // rest of the design system and couldn't handle multi-line text comfortably. Pattern
-  // mirrors PromoteButton.tsx for consistency — same overlay, same Escape/scroll-lock
-  // behavior, same card shape.
+  // Edit-directive modal state.
   const [editOpen, setEditOpen] = useState(false)
   const [editDraft, setEditDraft] = useState('')
 
-  // Escape closes the edit modal.
   useEffect(() => {
     if (!editOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -105,7 +103,6 @@ export function Figure5Workspace({ figure }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [editOpen])
 
-  // Lock body scroll while the modal is open so the page behind doesn't drift.
   useEffect(() => {
     if (!editOpen) return
     const prev = document.body.style.overflow
@@ -117,7 +114,6 @@ export function Figure5Workspace({ figure }: Props) {
 
   const branchName = `feature/${slugify(goal || 'unnamed-change')}`
 
-  // Fetch current branch + clean state on mount so we can warn before any git mutation.
   useEffect(() => {
     gitStatus()
       .then((s) => {
@@ -149,6 +145,7 @@ export function Figure5Workspace({ figure }: Props) {
     if (!goal.trim() || !scope.trim() || refining) return
     setRefining(true)
     setRefineError(null)
+    setRefineOverload(false)
     setDirective('')
     try {
       const composed = `Branch: ${branchName}\nTarget (file or segment): ${scope.trim()}\nGoal of the change: ${goal.trim()}`
@@ -158,7 +155,13 @@ export function Figure5Workspace({ figure }: Props) {
       })
       setDirective(result.text.trim())
     } catch (err) {
-      setRefineError((err as Error)?.message ?? 'Request failed')
+      // 529 overloads get a calm dedicated UI with a Retry button. Everything
+      // else falls through to the red refineError text.
+      if (isOverloadedError(err)) {
+        setRefineOverload(true)
+      } else {
+        setRefineError((err as Error)?.message ?? 'Request failed')
+      }
     } finally {
       setRefining(false)
     }
@@ -169,16 +172,21 @@ export function Figure5Workspace({ figure }: Props) {
     setRunningClaude(true)
     setClaudeOutput(null)
     setClaudeError(null)
+    setRunOverload(false)
     try {
       const result = await ask({
         systemPrompt:
-          "You are running against a real local Next.js prototype repo. The user has given you a scoped directive that names exactly one target file and one change. Use the Edit tool to actually make that change in the named file \u2014 do not just describe it, do not just propose it. After editing, reply with one short sentence summarizing the edit you made. Do not touch any file other than the one named in the directive.",
+          "You are running against a real local Next.js prototype repo. The user has given you a scoped directive that names exactly one target file and one change. Use the Edit tool to actually make that change in the named file — do not just describe it, do not just propose it. After editing, reply with one short sentence summarizing the edit you made. Do not touch any file other than the one named in the directive.",
         userPrompt: directive,
         allowedTools: ['Edit', 'Read'],
       })
       setClaudeOutput(result.text.trim())
     } catch (err) {
-      setClaudeError((err as Error)?.message ?? 'Claude run failed')
+      if (isOverloadedError(err)) {
+        setRunOverload(true)
+      } else {
+        setClaudeError((err as Error)?.message ?? 'Claude run failed')
+      }
     } finally {
       setRunningClaude(false)
     }
@@ -214,24 +222,17 @@ export function Figure5Workspace({ figure }: Props) {
     [finalizing, decision, branchName, completed, figure, awardShape],
   )
 
-  // Reset every downstream state when the user picks a different starter or types
-  // a different goal. Without this, an earlier walkthrough's directive, branch flag,
-  // and diff would still be sitting in state when the user picks something new — leading
-  // to the screenshot bug where the goal said "rename heading" but the visible directive
-  // was the old confidence-chip one from a prior pass.
-  //
-  // We also prefill the scope field with a paired suggestion so the user doesn't have
-  // to type a file path from scratch — they can still edit it, but the demo flow is
-  // cleaner with both fields populated by a single click.
   const pickStarterGoal = useCallback((starter: typeof STARTERS[number]) => {
     setGoal(starter.goal)
     setScope(starter.scope)
     setDirective('')
     setRefineError(null)
+    setRefineOverload(false)
     setBranchCreated(false)
     setBranchError(null)
     setClaudeOutput(null)
     setClaudeError(null)
+    setRunOverload(false)
     setDiffText(null)
   }, [])
 
@@ -243,16 +244,17 @@ export function Figure5Workspace({ figure }: Props) {
     setScope('')
     setDirective('')
     setRefineError(null)
+    setRefineOverload(false)
     setBranchCreated(false)
     setBranchError(null)
     setClaudeOutput(null)
     setClaudeError(null)
+    setRunOverload(false)
     setDiffText(null)
     setFinalizeError(null)
     setDecision(null)
   }
 
-  // Once a decision is made, render the send-off in place of the stepped walkthrough.
   if (decision != null) {
     return <Sendoff decision={decision} branchName={branchName} onReset={fullReset} />
   }
@@ -434,6 +436,16 @@ export function Figure5Workspace({ figure }: Props) {
               </Button>
             )}
 
+            {/* 529 overload notice for the refine call. Takes precedence over
+               the red error text below; both can't be set at once because
+               refineDirective clears each before trying. */}
+            {refineOverload && (
+              <OverloadNotice
+                onRetry={refineDirective}
+                retrying={refining}
+              />
+            )}
+
             {refineError && (
               <div className="text-danger text-xs">Refine failed: {refineError}</div>
             )}
@@ -486,6 +498,12 @@ export function Figure5Workspace({ figure }: Props) {
                       <p className="text-text-secondary m-0 whitespace-pre-wrap leading-relaxed">
                         {claudeOutput}
                       </p>
+                    </div>
+                  )}
+                  {/* 529 overload notice for the run call. */}
+                  {runOverload && (
+                    <div className="mt-2">
+                      <OverloadNotice onRetry={runClaude} retrying={runningClaude} />
                     </div>
                   )}
                   {claudeError && (
@@ -609,9 +627,7 @@ export function Figure5Workspace({ figure }: Props) {
         copy="You walked the five beats: branch, scope, ask, diff, decide. The composite isn't a single move — it's the rhythm of working with Claude on something you don't want refactored under you."
       />
 
-      {/* Edit-directive modal. Opens from beat 3's "Edit before running" link. Pattern
-          mirrors PromoteButton.tsx — same overlay, same card shape — so the prototype's
-          two modals feel like one component family. */}
+      {/* Edit-directive modal. */}
       {editOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
@@ -671,68 +687,6 @@ export function Figure5Workspace({ figure }: Props) {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function Sendoff({
-  decision,
-  branchName,
-  onReset,
-}: {
-  decision: 'merged' | 'discarded'
-  branchName: string
-  onReset: () => void
-}) {
-  return (
-    // Cover the figure page area but leave the navbar visible at top. The page's
-    // top padding (py-6 = 24px) plus the header content (≈56px) puts the navbar's
-    // bottom edge around 80px from the viewport top — start the overlay there so
-    // the back-arrow + title stay accessible during the send-off.
-    <div className="fixed inset-x-0 bottom-0 top-[80px] z-40 flex items-center justify-center overflow-y-auto bg-[color:var(--color-page)] px-6 py-10">
-      <div className="grid w-full max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
-        {/* Dancer at its natural size, the visual centerpiece on the left. */}
-        <div className="flex items-center justify-center">
-          <Dancer />
-        </div>
-
-        {/* Copy column on the right — heading, summary, follow-up commands, controls. */}
-        <div className="flex flex-col items-start gap-6 text-left">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-text-primary font-serif text-3xl m-0 leading-tight">
-              You&apos;re ready to use Claude Code anywhere.
-            </h2>
-            <p className="text-text-secondary m-0 text-sm leading-relaxed">
-              You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
-              <code className="font-mono text-xs">{branchName}</code>{' '}
-              {decision === 'merged'
-                ? 'into main. That change is on disk in this very repo.'
-                : 'and main was never touched. The branch is gone.'}{' '}
-              You did the whole loop — branch, scope, ask, diff, decide — on a real
-              codebase. These five moves work the same wherever Claude Code runs:
-              terminal, desktop app, API, here. The surface is yours to pick. The moves
-              are the lesson.
-            </p>
-          </div>
-
-          <div className="border-border-subtle bg-page w-full rounded-md border p-3 text-left">
-            <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
-              From here — pick the surface that fits, and try the loop on something new
-            </div>
-            <CommandLine command="git checkout -b feature/your-next-thing" />
-            <CommandLine command='claude -p "what you want, scoped to one file"' />
-            <CommandLine command="git diff" />
-            <CommandLine command="# merge or discard, just like you did here" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button onClick={onReset}>Walk through again</Button>
-            <Link href="/" className="text-text-tertiary hover:text-text-primary text-sm">
-              Back to all figures
-            </Link>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
