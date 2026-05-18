@@ -1,44 +1,24 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Stage } from './Stage'
-import { useRafLoop } from '@/lib/anim'
+import { useReducedMotion } from '@/lib/anim'
+import { DANCER_POSE } from './dancer-pose'
 
 // ============================================================================
-// Schlemmer-key marionette. Strictly the five earned shapes, matching the
-// Shapes tab's geometry, gradient, ink stroke, and edge filter.
+// Schlemmer-key marionette. Strictly the five earned shapes (circle, square,
+// composite, arc, triangle), matching the Shapes tab's geometry, gradient,
+// ink stroke, and edge filter.
 //
-//   CIRCLE (fig.1, red accent)        → head, sits ON top of the torso
-//   SQUARE (fig.4, black stage)       → torso
-//   COMPOSITE (fig.5, red + blue)     → arms, slightly different sizes to
-//                                       suggest 3D rotation
-//   ARC (fig.3, yellow tertiary)      → skirt, rendered as TILED COPIES of
-//                                       the fig.3 card itself (mini cards,
-//                                       overlapping in a row)
-//   TRIANGLE (fig.2, blue secondary)  → legs, wide top, squat
-// ============================================================================
-
-// ============================================================================
-// Vertex / parameter vocabulary — reference these names when iterating.
+// The dancer's POSE — the specific coordinates of every shape — lives in
+// `dancer-pose.ts`. This file owns the *rendering* of those shapes: gradients,
+// filters, spotlight wash, ambient motion, the surrounding Stage.
 //
-//   Spine & canvas:    W, H, SPINE_X
-//   Head:              HEAD_R, HEAD_CY
-//   Torso:             TORSO_SIZE, TORSO_TOP_Y, TORSO_TILT
-//                      (derived: TORSO_LEFT_X, TORSO_RIGHT_X, TORSO_BOTTOM_Y)
-//   Arms:              ARM_Y, ARM_SIZE_LEFT, ARM_SIZE_RIGHT
-//   Skirt (tiles):     SKIRT_TILE_COUNT, SKIRT_TILE_SIZE,
-//                      SKIRT_TILE_OVERLAP, SKIRT_Y, SKIRT_HORIZONTAL_SPREAD,
-//                      SKIRT_TILT_PER_TILE
-//   Legs (triangle vertices: TOP_LEFT, TOP_RIGHT, APEX):
-//                      LEG_OFFSET, LEG_TOP_HALF_WIDTH, LEG_HEIGHT
-//                      (derived: LEG_TOP_Y, LEG_APEX_Y)
-//
-// Example feedback I can act on:
-//   "Make the head 10% smaller"            → adjust HEAD_R
-//   "Push leg APEX out from spine by 6px"  → adjust LEG_OFFSET or per-leg sign
-//   "Tilt the torso 4° clockwise"          → adjust TORSO_TILT
-//   "Skirt tiles overlap more"             → adjust SKIRT_TILE_OVERLAP
-//   "Add a 6th skirt tile"                 → adjust SKIRT_TILE_COUNT
+// Motion approach: every body part oscillates around its own natural pivot
+// at a slightly different period and phase. There's no whole-body bob — the
+// figure stays planted and what reads as "alive" is the small uncoordinated
+// drifts of each part. Schlemmer's figures were marionettes; this is the
+// strings.
 // ============================================================================
 
 const W = 360
@@ -46,77 +26,158 @@ const H = 460
 const SPINE_X = 180
 const INK = 'var(--color-stage)'
 
-// HEAD — circle, sits ON the torso (tangent at top of torso)
-const HEAD_R = 46
-const HEAD_CY = 80
+// Floor line. Set well below the deepest leg-swing position so the toe
+// doesn't slice through it as the legs oscillate around their hips.
+const FLOOR = 385
 
-// TORSO — square, the visual mass. TORSO_TILT in degrees, signed.
-const TORSO_SIZE = 96
-const TORSO_TOP_Y = HEAD_CY + HEAD_R
-const TORSO_TILT = 0
-const TORSO_LEFT_X = SPINE_X - TORSO_SIZE / 2
-const TORSO_RIGHT_X = SPINE_X + TORSO_SIZE / 2
-const TORSO_BOTTOM_Y = TORSO_TOP_Y + TORSO_SIZE
+// Per-part oscillation. Each part has its own period (ms) and amplitude
+// (degrees of rotation). Periods are deliberately near-prime numbers so the
+// parts never realign into a stiff in-sync wobble.
+const HEAD_OSC_MS = 5400
+const HEAD_OSC_AMP = 2.0
 
-// ARMS — composites, slightly different sizes (turn illusion)
-const ARM_Y = TORSO_TOP_Y + TORSO_SIZE * 0.30
-const ARM_SIZE_RIGHT = 84
-const ARM_SIZE_LEFT = 76
+const TORSO_OSC_MS = 6700
+const TORSO_OSC_AMP = 1.0
 
-// SKIRT — TILED COPIES of the fig.3 card. Each tile is a miniature of the
-// fig.3 cell from the Shapes tab: dashed pencil border, "FIG. 3" label,
-// the arc shape, soft yellow wash. Tiles overlap horizontally and shift
-// slightly down/rotated to read as a single skirt rather than discrete cards.
-const SKIRT_TILE_COUNT = 4
-const SKIRT_TILE_SIZE = 96 // px square per tile — larger so the row overlaps both torso and legs
-const SKIRT_TILE_OVERLAP = 32 // px each tile overlaps the previous one
-const SKIRT_Y = TORSO_BOTTOM_Y - 14 // top edge pulled up into the torso
-const SKIRT_HORIZONTAL_SPREAD =
-  SKIRT_TILE_SIZE + (SKIRT_TILE_COUNT - 1) * (SKIRT_TILE_SIZE - SKIRT_TILE_OVERLAP)
-const SKIRT_LEFT_X = SPINE_X - SKIRT_HORIZONTAL_SPREAD / 2
-const SKIRT_TILT_PER_TILE = -2 // degrees of rotation accumulated per tile
+const LEFT_LEG_OSC_MS = 4900
+const LEFT_LEG_OSC_AMP = 2.5
 
-// LEGS — two upside-down triangles. Vertex names:
-//   TOP_LEFT  = top-left corner of the triangle's base (at LEG_TOP_Y)
-//   TOP_RIGHT = top-right corner of the triangle's base (at LEG_TOP_Y)
-//   APEX      = bottom point of the triangle (at LEG_TOP_Y + LEG_HEIGHT)
-// Wide top, squat aspect.
-const LEG_OFFSET = 36 // x-offset from spine to each leg's center
-const LEG_TOP_HALF_WIDTH = 36 // half-width of the triangle's base
-const LEG_HEIGHT = 56 // vertical distance from top edge to APEX
-const LEG_TOP_Y = TORSO_BOTTOM_Y + SKIRT_TILE_SIZE - 28 // legs tuck up into the skirt
-const LEG_APEX_Y = LEG_TOP_Y + LEG_HEIGHT
+const RIGHT_LEG_OSC_MS = 5300
+const RIGHT_LEG_OSC_AMP = 2.2
 
-const FLOOR = LEG_APEX_Y + 8
+const LEFT_ARM_OSC_MS = 4300
+const LEFT_ARM_OSC_AMP = 3.0
 
-const BODY_BREATH_MS = 6800
-const ARMS_SWAY_MS = 8400
+const RIGHT_ARM_OSC_MS = 5700
+const RIGHT_ARM_OSC_AMP = 2.5
+
+const SKIRT_SHIMMER_MS = 5200
+const SKIRT_SHIMMER_AMP = 3.5
+
+const SPOTLIGHT_PULSE_MS = 6400
+const SPOTLIGHT_PULSE_AMP = 0.08
 
 export function Dancer() {
-  const bodyRef = useRef<SVGGElement | null>(null)
-  const armsRef = useRef<SVGGElement | null>(null)
   const spotlightRef = useRef<SVGCircleElement | null>(null)
+  const headRef = useRef<SVGGElement | null>(null)
+  const torsoRef = useRef<SVGGElement | null>(null)
+  const leftLegRef = useRef<SVGGElement | null>(null)
+  const rightLegRef = useRef<SVGGElement | null>(null)
+  const leftArmRef = useRef<SVGGElement | null>(null)
+  const rightArmRef = useRef<SVGGElement | null>(null)
+  const skirtArcRefs = useRef<Array<SVGGElement | null>>([])
+  const reduced = useReducedMotion()
 
-  useRafLoop((elapsed) => {
-    const breathT = (elapsed % BODY_BREATH_MS) / BODY_BREATH_MS
-    const bob = Math.sin(breathT * Math.PI * 2) * 0.9
-    bodyRef.current?.setAttribute('transform', `translate(0 ${bob.toFixed(2)})`)
+  useEffect(() => {
+    let raf = 0
+    const start = performance.now()
+    // Scale all amplitudes down (not off) under reduced motion. Tiny ambient
+    // motion is still appropriate at the magnitudes we're using.
+    const ampScale = reduced ? 0.3 : 1
 
-    const armsT = (elapsed % ARMS_SWAY_MS) / ARMS_SWAY_MS
-    const armsAngle = Math.sin(armsT * Math.PI * 2) * 2.5
-    armsRef.current?.setAttribute(
-      'transform',
-      `rotate(${armsAngle.toFixed(2)} ${SPINE_X} ${ARM_Y})`,
-    )
-
-    const sT = (elapsed % 6400) / 6400
-    if (spotlightRef.current) {
-      spotlightRef.current.setAttribute(
-        'r',
-        (150 * (1 + Math.sin(sT * Math.PI * 2) * 0.04)).toFixed(2),
-      )
+    // Each part rotates around its own natural pivot. Pivots are derived from
+    // the pose's geometry: head around the bottom of the head (~neck point),
+    // torso around its top-edge midpoint, legs around the top-edge midpoint
+    // of each leg's triangle (the hip), arms around the torso-side midpoint
+    // of each arm composite's bounding box (the shoulder).
+    const headPivot = {
+      x: DANCER_POSE.head.center.x,
+      y: DANCER_POSE.head.center.y + DANCER_POSE.head.radius,
     }
-  })
+    const torsoPivot = {
+      x: (DANCER_POSE.torso.vertices[0].x + DANCER_POSE.torso.vertices[1].x) / 2,
+      y: (DANCER_POSE.torso.vertices[0].y + DANCER_POSE.torso.vertices[1].y) / 2,
+    }
+    // Leg pivots: midpoint of the top edge (top-left + top-right) / 2.
+    const leftLegPivot = {
+      x: (DANCER_POSE.leftLeg.vertices[0].x + DANCER_POSE.leftLeg.vertices[1].x) / 2,
+      y: (DANCER_POSE.leftLeg.vertices[0].y + DANCER_POSE.leftLeg.vertices[1].y) / 2,
+    }
+    const rightLegPivot = {
+      x: (DANCER_POSE.rightLeg.vertices[0].x + DANCER_POSE.rightLeg.vertices[1].x) / 2,
+      y: (DANCER_POSE.rightLeg.vertices[0].y + DANCER_POSE.rightLeg.vertices[1].y) / 2,
+    }
+    // Arm pivots: the inner-torso-side midpoint of the forearm square (the
+    // approximate shoulder attachment).
+    const leftArmPivot = {
+      x: Math.max(...DANCER_POSE.leftArm.square.vertices.map((v) => v.x)),
+      y:
+        DANCER_POSE.leftArm.square.vertices.reduce((sum, v) => sum + v.y, 0) /
+        DANCER_POSE.leftArm.square.vertices.length,
+    }
+    const rightArmPivot = {
+      x: Math.min(...DANCER_POSE.rightArm.square.vertices.map((v) => v.x)),
+      y:
+        DANCER_POSE.rightArm.square.vertices.reduce((sum, v) => sum + v.y, 0) /
+        DANCER_POSE.rightArm.square.vertices.length,
+    }
+
+    // Helper: build a `rotate(angle cx cy)` transform string.
+    const rot = (angle: number, p: { x: number; y: number }): string =>
+      `rotate(${angle.toFixed(2)} ${p.x.toFixed(1)} ${p.y.toFixed(1)})`
+
+    // Helper: oscillate at a period+amplitude with optional phase offset.
+    const osc = (elapsed: number, period: number, amp: number, phase = 0): number =>
+      Math.sin(((elapsed % period) / period + phase) * Math.PI * 2) * amp * ampScale
+
+    const tick = () => {
+      const elapsed = performance.now() - start
+
+      // Spotlight pulse.
+      const sT = (elapsed % SPOTLIGHT_PULSE_MS) / SPOTLIGHT_PULSE_MS
+      if (spotlightRef.current) {
+        spotlightRef.current.setAttribute(
+          'r',
+          (150 * (1 + Math.sin(sT * Math.PI * 2) * SPOTLIGHT_PULSE_AMP * ampScale)).toFixed(2),
+        )
+      }
+
+      // Per-part rotations. Distinct periods + phase offsets so they never
+      // line up.
+      headRef.current?.setAttribute(
+        'transform',
+        rot(osc(elapsed, HEAD_OSC_MS, HEAD_OSC_AMP), headPivot),
+      )
+      torsoRef.current?.setAttribute(
+        'transform',
+        rot(osc(elapsed, TORSO_OSC_MS, TORSO_OSC_AMP, 0.3), torsoPivot),
+      )
+      leftLegRef.current?.setAttribute(
+        'transform',
+        rot(osc(elapsed, LEFT_LEG_OSC_MS, LEFT_LEG_OSC_AMP, 0.1), leftLegPivot),
+      )
+      rightLegRef.current?.setAttribute(
+        'transform',
+        // Negative amplitude so the legs counter-sway (slight contrapposto).
+        rot(osc(elapsed, RIGHT_LEG_OSC_MS, -RIGHT_LEG_OSC_AMP, 0.4), rightLegPivot),
+      )
+      leftArmRef.current?.setAttribute(
+        'transform',
+        rot(osc(elapsed, LEFT_ARM_OSC_MS, LEFT_ARM_OSC_AMP, 0.2), leftArmPivot),
+      )
+      rightArmRef.current?.setAttribute(
+        'transform',
+        rot(osc(elapsed, RIGHT_ARM_OSC_MS, -RIGHT_ARM_OSC_AMP, 0.6), rightArmPivot),
+      )
+
+      // Skirt arc shimmer (per-arc, around each arc's own center).
+      const baseT = (elapsed % SKIRT_SHIMMER_MS) / SKIRT_SHIMMER_MS
+      skirtArcRefs.current.forEach((el, i) => {
+        if (!el) return
+        const arc = DANCER_POSE.skirtArcs[i]
+        const angle =
+          Math.sin((baseT + i * 0.25) * Math.PI * 2) * SKIRT_SHIMMER_AMP * ampScale
+        el.setAttribute('transform', rot(angle, arc.center))
+      })
+
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [reduced])
+
+  const { head, torso, leftLeg, rightLeg, leftArm, rightArm, skirtArcs } =
+    DANCER_POSE
 
   return (
     <Stage
@@ -170,174 +231,150 @@ export function Dancer() {
           <circle
             ref={spotlightRef}
             cx={SPINE_X}
-            cy={TORSO_TOP_Y + TORSO_SIZE / 2 + 90}
+            cy={180}
             r={150}
             fill="url(#spotlight-wash)"
           />
 
-          <g ref={bodyRef}>
-            <line
-              x1={32}
-              x2={W - 32}
-              y1={FLOOR}
-              y2={FLOOR}
-              stroke="var(--color-text-tertiary)"
-              strokeWidth={0.5}
-            />
+          {/* Floor line stays still — gives the figure something to oscillate against. */}
+          <line
+            x1={32}
+            x2={W - 32}
+            y1={FLOOR}
+            y2={FLOOR}
+            stroke="var(--color-text-tertiary)"
+            strokeWidth={0.5}
+          />
 
-            {/* TWO TRIANGLES (LEGS) */}
+          {/* LEFT LEG — wrapped in its own <g> for independent rotation. */}
+          <g ref={leftLegRef}>
             <g filter="url(#dancer-edge)">
-              {[-1, 1].map((side) => {
-                const cxTop = SPINE_X + side * LEG_OFFSET
-                const tl = `${cxTop - LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}` // TOP_LEFT
-                const tr = `${cxTop + LEG_TOP_HALF_WIDTH},${LEG_TOP_Y}` // TOP_RIGHT
-                const apex = `${cxTop},${LEG_APEX_Y}` // APEX
+              <polygon
+                points={leftLeg.vertices.map((v) => `${v.x},${v.y}`).join(' ')}
+                fill="url(#dancer-leg-fill)"
+                stroke={INK}
+                strokeWidth={0.7}
+                strokeLinejoin="round"
+              />
+            </g>
+          </g>
+
+          {/* RIGHT LEG */}
+          <g ref={rightLegRef}>
+            <g filter="url(#dancer-edge)">
+              <polygon
+                points={rightLeg.vertices.map((v) => `${v.x},${v.y}`).join(' ')}
+                fill="url(#dancer-leg-fill)"
+                stroke={INK}
+                strokeWidth={0.7}
+                strokeLinejoin="round"
+              />
+            </g>
+          </g>
+
+          {/* SKIRT — yellow wash + four shimmering arcs */}
+          <g>
+            <ellipse
+              cx={SPINE_X}
+              cy={252}
+              rx={120 / 2 + 6}
+              ry={96 * 0.45}
+              fill="url(#dancer-skirt-tile-wash)"
+            />
+            <g filter="url(#dancer-edge)">
+              {skirtArcs.map((arc, i) => {
+                const startRad = (arc.startAngle * Math.PI) / 180
+                const endRad = (arc.endAngle * Math.PI) / 180
+                const startX = arc.center.x + arc.radius * Math.cos(startRad)
+                const startY = arc.center.y + arc.radius * Math.sin(startRad)
+                const endX = arc.center.x + arc.radius * Math.cos(endRad)
+                const endY = arc.center.y + arc.radius * Math.sin(endRad)
+                const angleSpan = Math.abs(arc.endAngle - arc.startAngle)
+                const largeArc = angleSpan > 180 ? 1 : 0
+                const sweep = arc.endAngle > arc.startAngle ? 1 : 0
+                const d = `M ${startX} ${startY} A ${arc.radius} ${arc.radius} 0 ${largeArc} ${sweep} ${endX} ${endY}`
                 return (
-                  <polygon
-                    key={side}
-                    points={`${tl} ${tr} ${apex}`}
-                    fill="url(#dancer-leg-fill)"
-                    stroke={INK}
-                    strokeWidth={0.7}
-                    strokeLinejoin="round"
-                  />
+                  <g
+                    key={i}
+                    ref={(el) => {
+                      skirtArcRefs.current[i] = el
+                    }}
+                  >
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={INK}
+                      strokeWidth={1.0}
+                      strokeLinecap="round"
+                    />
+                  </g>
                 )
               })}
             </g>
+          </g>
 
-            {/* SKIRT — four copies of the canonical fig.3 arc placed in a
-                horizontal row, overlapping. Just the arc shape itself —
-                black ink stroke, yellow wash behind. No card chrome, no
-                labels. The arcs ARE the skirt; their tiling is what reads
-                as costume mass. */}
-            <g>
-              {/* Single yellow wash spanning the whole skirt row */}
-              <ellipse
-                cx={SPINE_X}
-                cy={SKIRT_Y + SKIRT_TILE_SIZE / 2}
-                rx={SKIRT_HORIZONTAL_SPREAD / 2 + 6}
-                ry={SKIRT_TILE_SIZE * 0.45}
-                fill="url(#dancer-skirt-tile-wash)"
-              />
-              <g filter="url(#dancer-edge)">
-                {Array.from({ length: SKIRT_TILE_COUNT }).map((_, i) => {
-                  const tileX =
-                    SKIRT_LEFT_X + i * (SKIRT_TILE_SIZE - SKIRT_TILE_OVERLAP)
-                  const tileCenterX = tileX + SKIRT_TILE_SIZE / 2
-                  const tileCenterY = SKIRT_Y + SKIRT_TILE_SIZE / 2
-                  // Rotation: tiles on the LEFT half rotate -90° (counter-
-                  // clockwise), tiles on the RIGHT half rotate +90°
-                  // (clockwise). Domes-up become vertical brackets meeting
-                  // in the middle: “)(” on the left half, “()” on the right.
-                  const isLeftHalf = i < SKIRT_TILE_COUNT / 2
-                  const rotation = isLeftHalf ? -90 : 90
-                  const scale = (SKIRT_TILE_SIZE * 0.85) / 48
-                  const offsetX = tileX + (SKIRT_TILE_SIZE * 0.075)
-                  const offsetY = SKIRT_Y + (SKIRT_TILE_SIZE * 0.075)
-                  return (
-                    <g
-                      key={i}
-                      transform={`rotate(${rotation} ${tileCenterX} ${tileCenterY}) translate(${offsetX} ${offsetY}) scale(${scale})`}
-                    >
-                      <path
-                        d="M 6 36 A 18 18 0 0 1 42 36"
-                        fill="none"
-                        stroke={INK}
-                        strokeWidth={1.0}
-                        strokeLinecap="round"
-                      />
-                    </g>
-                  )
-                })}
-              </g>
-            </g>
-
-            {/* SQUARE (TORSO) */}
-            <g filter="url(#dancer-edge)" transform={TORSO_TILT !== 0 ? `rotate(${TORSO_TILT} ${SPINE_X} ${TORSO_TOP_Y + TORSO_SIZE / 2})` : undefined}>
-              <rect
-                x={TORSO_LEFT_X}
-                y={TORSO_TOP_Y}
-                width={TORSO_SIZE}
-                height={TORSO_SIZE}
+          {/* TORSO */}
+          <g ref={torsoRef}>
+            <g filter="url(#dancer-edge)">
+              <polygon
+                points={torso.vertices.map((v) => `${v.x},${v.y}`).join(' ')}
                 fill="url(#dancer-torso-fill)"
                 stroke={INK}
                 strokeWidth={0.9}
                 strokeLinejoin="round"
               />
             </g>
+          </g>
 
-            {/* TWO COMPOSITES (ARMS) */}
-            <g ref={armsRef} filter="url(#dancer-edge)">
-              {[
-                { side: 1, size: ARM_SIZE_RIGHT },
-                { side: -1, size: ARM_SIZE_LEFT },
-              ].map(({ side, size }) => {
-                const torsoEdgeX = side === -1 ? TORSO_LEFT_X : TORSO_RIGHT_X
-                const scale = size / 48
-                if (side === 1) {
-                  const offsetX = torsoEdgeX - 6 * scale
-                  const offsetY = ARM_Y - 16 * scale
-                  return (
-                    <g
-                      key={side}
-                      transform={`translate(${offsetX} ${offsetY}) scale(${scale})`}
-                    >
-                      <circle
-                        cx={16}
-                        cy={16}
-                        r={10}
-                        fill="url(#dancer-arm-circle-fill)"
-                        stroke={INK}
-                        strokeWidth={0.55}
-                      />
-                      <rect
-                        x={22}
-                        y={22}
-                        width={20}
-                        height={20}
-                        fill="url(#dancer-arm-square-fill)"
-                        stroke={INK}
-                        strokeWidth={0.55}
-                      />
-                    </g>
-                  )
-                } else {
-                  const offsetX = torsoEdgeX + 6 * scale
-                  const offsetY = ARM_Y - 16 * scale
-                  return (
-                    <g
-                      key={side}
-                      transform={`translate(${offsetX} ${offsetY}) scale(${-scale} ${scale})`}
-                    >
-                      <circle
-                        cx={16}
-                        cy={16}
-                        r={10}
-                        fill="url(#dancer-arm-circle-fill)"
-                        stroke={INK}
-                        strokeWidth={0.55}
-                      />
-                      <rect
-                        x={22}
-                        y={22}
-                        width={20}
-                        height={20}
-                        fill="url(#dancer-arm-square-fill)"
-                        stroke={INK}
-                        strokeWidth={0.55}
-                      />
-                    </g>
-                  )
-                }
-              })}
-            </g>
-
-            {/* CIRCLE (HEAD) */}
+          {/* RIGHT ARM — composite */}
+          <g ref={rightArmRef}>
             <g filter="url(#dancer-edge)">
               <circle
-                cx={SPINE_X}
-                cy={HEAD_CY}
-                r={HEAD_R}
+                cx={rightArm.circle.center.x}
+                cy={rightArm.circle.center.y}
+                r={rightArm.circle.radius}
+                fill="url(#dancer-arm-circle-fill)"
+                stroke={INK}
+                strokeWidth={0.55}
+              />
+              <polygon
+                points={rightArm.square.vertices.map((v) => `${v.x},${v.y}`).join(' ')}
+                fill="url(#dancer-arm-square-fill)"
+                stroke={INK}
+                strokeWidth={0.55}
+                strokeLinejoin="round"
+              />
+            </g>
+          </g>
+
+          {/* LEFT ARM — composite */}
+          <g ref={leftArmRef}>
+            <g filter="url(#dancer-edge)">
+              <circle
+                cx={leftArm.circle.center.x}
+                cy={leftArm.circle.center.y}
+                r={leftArm.circle.radius}
+                fill="url(#dancer-arm-circle-fill)"
+                stroke={INK}
+                strokeWidth={0.55}
+              />
+              <polygon
+                points={leftArm.square.vertices.map((v) => `${v.x},${v.y}`).join(' ')}
+                fill="url(#dancer-arm-square-fill)"
+                stroke={INK}
+                strokeWidth={0.55}
+                strokeLinejoin="round"
+              />
+            </g>
+          </g>
+
+          {/* HEAD */}
+          <g ref={headRef}>
+            <g filter="url(#dancer-edge)">
+              <circle
+                cx={head.center.x}
+                cy={head.center.y}
+                r={head.radius}
                 fill="url(#dancer-head-fill)"
                 stroke={INK}
                 strokeWidth={0.9}
