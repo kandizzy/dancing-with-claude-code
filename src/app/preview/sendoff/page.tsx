@@ -5,13 +5,13 @@
  * figures' worth of state. Renders `<Sendoff />` with sensible defaults:
  *   - decision: 'merged' (the more common path)
  *   - branchName: a generic-looking placeholder
- *   - onReset: a no-op (the "Walk through again" button can't actually walk
- *     anywhere from here, since there's no workspace state to reset)
+ *   - onDismiss: a no-op (nothing to dismiss to from a preview route)
+ *   - justDecided: true (previews the richer figure-5-specific copy)
  *
  * Visit at /preview/sendoff. Not linked from anywhere in the prototype — it's
  * a developer convenience, not a user-facing route.
  *
- * Marked 'use client' because we pass an `onReset` function down to the
+ * Marked 'use client' because we pass an `onDismiss` function down to the
  * Sendoff component, which is a Client Component. Function props can't
  * cross the server/client boundary.
  */
@@ -25,7 +25,8 @@ export default function SendoffPreviewPage() {
     <Sendoff
       decision="merged"
       branchName="feature/your-next-thing"
-      onReset={() => {}}
+      onDismiss={() => {}}
+      justDecided={true}
     />
   )
 }

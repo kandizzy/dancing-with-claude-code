@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
-import { ask, isOverloadedError } from '@/lib/ai/client'
+import { ask, isOverloadedError, isRateLimitError } from '@/lib/ai/client'
 import { findUserEntryMatch } from '@/lib/figures/registry'
 import type { FigureDefinition } from '@/lib/figures/types'
 import { useLearnStore } from '@/lib/learn-store'
@@ -102,12 +102,13 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   const [messages, setMessages] = useState<RenderedMessage[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  // When a 529 fires, capture the text that triggered it so the Retry button
-  // can re-run the same send. Cleared on success or when the user types a new
-  // question. Held separately from `messages` so the chat history stays clean
-  // — the user sees their question above and the overload notice below it,
-  // not an Error: … assistant turn that they'd have to manually delete.
-  const [overloadFor, setOverloadFor] = useState<string | null>(null)
+  // When a 529 or 429 fires, capture both the text that triggered it and
+  // which kind of error it was so the right notice + recovery affordance
+  // can render. Cleared on success or when the user types a new question.
+  // Held separately from `messages` so the chat history stays clean.
+  const [pendingError, setPendingError] = useState<
+    { kind: 'overloaded' | 'rate-limit'; text: string } | null
+  >(null)
   // The Agent SDK session ID for this conversation, scoped per figure so each
   // workspace has its own conversation surface. Rehydrated from localStorage on mount.
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -194,14 +195,14 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
       // Retry on a 529. For the fresh path we append a new user message; for the
       // retry path the user message is already on screen (the previous attempt),
       // so we just re-run without duplicating it. We distinguish by checking
-      // whether trimmed equals the pending overloadFor text.
-      const isRetry = overloadFor != null && overloadFor === trimmed
+      // whether trimmed equals the pending error's text.
+      const isRetry = pendingError != null && pendingError.text === trimmed
       if (!isRetry) {
         const userMsg: RenderedMessage = { id: crypto.randomUUID(), role: 'user', content: trimmed }
         setMessages((m) => [...m, userMsg])
         setInput('')
       }
-      setOverloadFor(null)
+      setPendingError(null)
       setStreaming(true)
 
       try {
@@ -209,6 +210,10 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
           systemPrompt: SYSTEM_PROMPT,
           userPrompt: trimmed,
           sessionId,
+          // Figure 1 (and 2, via FigureChat) needs CLAUDE.md — the lesson IS
+          // that file being read on every reply. Doesn't need the agent preset
+          // since this is pure text Q&A with no tools.
+          loadProjectContext: true,
         })
         const matched = findUserEntryMatch(result.text, claudeMd)
         const assistantMsg: RenderedMessage = {
@@ -230,11 +235,13 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
           awardShape(figure.id, figure.shape, matched)
         }
       } catch (err) {
-        // 529 overloads get a calm dedicated UI with a Retry button instead of
-        // an inline "Error: …" message in the chat. Everything else falls
-        // through to the generic error-as-assistant-message path.
+        // 529 and 429 each get a calm dedicated UI instead of an inline
+        // "Error: …" message in the chat. Everything else falls through to
+        // the generic error-as-assistant-message path.
         if (isOverloadedError(err)) {
-          setOverloadFor(trimmed)
+          setPendingError({ kind: 'overloaded', text: trimmed })
+        } else if (isRateLimitError(err)) {
+          setPendingError({ kind: 'rate-limit', text: trimmed })
         } else {
           const errMsg =
             (err as Error)?.message ?? 'Request failed. Check your terminal for details.'
@@ -247,8 +254,10 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
         setStreaming(false)
       }
     },
-    [figure, awardShape, completed, claudeMd, sessionId, sessionStorageKey, onMatchedText, overloadFor],
+    [figure, awardShape, completed, claudeMd, sessionId, sessionStorageKey, onMatchedText, pendingError],
   )
+
+
 
   const onPickStarter = (text: string) => {
     appendNote(text)
@@ -268,7 +277,7 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   const clearConversation = useCallback(() => {
     setMessages([])
     setSessionId(null)
-    setOverloadFor(null)
+    setPendingError(null)
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(sessionStorageKey)
       window.localStorage.removeItem(messagesStorageKey)
@@ -375,39 +384,46 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
           </ClaudeMessage>
         )}
 
-        {/* 529 overload affordance — only shown when a send hit a 529 AND a
-           retry isn't currently in flight. The Retry button re-runs the same
-           handleSend with the captured text. */}
-        {overloadFor && !streaming && (
+        {/* Transient error affordance — only shown when a send hit a 529 or
+           429 AND a retry isn't currently in flight. Renders the right kind
+           of notice based on which error fired. */}
+        {pendingError && !streaming && (
           <div className="mt-3">
-            <OverloadNotice onRetry={() => handleSend(overloadFor)} />
+            <OverloadNotice
+              kind={pendingError.kind}
+              onRetry={() => handleSend(pendingError.text)}
+            />
           </div>
         )}
       </div>
 
-      {showSuccess && (
-        <div className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm">
-          <div className="text-text-primary mb-1 flex items-center gap-2 font-semibold">
-            <Check className="size-4" />
-            Circle earned
+      {
+        showSuccess && (
+          <div className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm">
+            <div className="text-text-primary mb-1 flex items-center gap-2 font-semibold">
+              <Check className="size-4" />
+              Circle earned
+            </div>
+            <p className="text-text-secondary m-0">
+              Claude just reused something <em>you</em> wrote. That&apos;s the whole trick — your
+              CLAUDE.md is now project context Claude reads before every reply, not just chatter
+              from earlier in this conversation.
+            </p>
           </div>
-          <p className="text-text-secondary m-0">
-            Claude just reused something <em>you</em> wrote. That&apos;s the whole trick — your
-            CLAUDE.md is now project context Claude reads before every reply, not just chatter
-            from earlier in this conversation.
-          </p>
-        </div>
-      )}
+        )
+      }
 
-      {showFollowUpNudge && (
-        <div className="border-border-subtle rounded-md border p-4 text-sm">
-          <p className="text-text-secondary m-0">
-            Claude didn&apos;t pull from your notes this time. Either the question didn&apos;t
-            touch any of them, or the notes are too general to land. Try adding a more specific
-            one — or rewrite an existing note tighter — and ask again.
-          </p>
-        </div>
-      )}
+      {
+        showFollowUpNudge && (
+          <div className="border-border-subtle rounded-md border p-4 text-sm">
+            <p className="text-text-secondary m-0">
+              Claude didn&apos;t pull from your notes this time. Either the question didn&apos;t
+              touch any of them, or the notes are too general to land. Try adding a more specific
+              one — or rewrite an existing note tighter — and ask again.
+            </p>
+          </div>
+        )
+      }
 
       <div className="border-border-subtle bg-surface relative rounded-xl border p-3">
         <textarea
@@ -466,6 +482,6 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
         <HelpCircle className="size-3" />
         Not sure what to try? Ask the slash command in figure 2.
       </Link>
-    </div>
+    </div >
   )
 }

@@ -18,15 +18,23 @@ export type AiCallInput = {
   // Tools to allow the SDK to call. Defaults to none (text-only). Figure 5's run step
   // passes ['Edit', 'Write'] so Claude can actually modify files on the branch.
   allowedTools?: ReadonlyArray<string>
+  // Whether to use the Claude Code system-prompt preset. See ClaudeCliOptions
+  // for the cost tradeoff. Default false.
+  useClaudeCodePreset?: boolean
+  // Whether to load CLAUDE.md and .claude/commands/ from cwd. See
+  // ClaudeCliOptions for the cost tradeoff. Default false.
+  loadProjectContext?: boolean
 }
 
 /**
  * If the SDK returns the assistant's reply wrapped in a JSON envelope
  * (e.g. `{"text": "...", "sessionId": "..."}` as a literal string), unwrap
- * one layer. This started happening at some point in mid-2026 with some
- * SDK / model combinations — the model produces a JSON-shaped string instead
- * of plain prose. We detect it heuristically: text that starts with `{`, ends
- * with `}`, parses as JSON, and has a `text` field of its own.
+ * one layer. Observed in the wild during the May 2026 Anthropic 529 events:
+ * the SDK's error path packaged its own envelope into the text field, and
+ * that wrapped string ended up rendered in the chat as the assistant's reply.
+ *
+ * Detected heuristically: text that starts with `{`, ends with `}`, parses
+ * as JSON, and has a `text` field of its own.
  *
  * Defensive only. If the unwrap doesn't apply, return the original text
  * untouched. Generic JSON that isn't shaped like our result envelope (no
@@ -70,6 +78,8 @@ export async function callAi(input: AiCallInput): Promise<AiCallResult> {
     cwd: input.cwd,
     resumeSessionId: input.resumeSessionId,
     allowedTools: input.allowedTools,
+    useClaudeCodePreset: input.useClaudeCodePreset,
+    loadProjectContext: input.loadProjectContext,
   })
   return {
     text: unwrapJsonEnvelope(result.text),

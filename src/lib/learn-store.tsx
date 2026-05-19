@@ -22,6 +22,11 @@ type LearnState = {
   claudeMd: string
   // Whether the CLAUDE.md drawer (rendered on every page) is currently expanded.
   claudeMdOpen: boolean
+  // Whether the user has seen the final send-off screen. The sendoff is a
+  // one-time moment — once viewed, returning to any figure (including 5)
+  // shows that figure's regular workspace. Reset Progress (on /) clears
+  // this so a fresh walk-through can earn the moment again.
+  sendoffSeen: boolean
 }
 
 type LearnStore = LearnState & {
@@ -31,6 +36,7 @@ type LearnStore = LearnState & {
   setClaudeMd: (text: string) => void
   appendNote: (text: string) => void
   setClaudeMdOpen: (open: boolean) => void
+  markSendoffSeen: () => void
   reset: () => void
 }
 
@@ -41,6 +47,7 @@ const INITIAL: LearnState = {
   matchedAt: {},
   claudeMd: SEED_CLAUDE_MD,
   claudeMdOpen: false,
+  sendoffSeen: false,
 }
 
 const LearnContext = createContext<LearnStore | null>(null)
@@ -89,6 +96,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
             // on a fresh page load. Persisting it means opening the drawer on one
             // figure leaves it open on every subsequent page.
             claudeMdOpen: false,
+            sendoffSeen: parsed.sendoffSeen ?? false,
           })
         }
       } catch {
@@ -157,6 +165,10 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, claudeMdOpen: open }))
   }, [])
 
+  const markSendoffSeen = useCallback(() => {
+    setState((prev) => (prev.sendoffSeen ? prev : { ...prev, sendoffSeen: true }))
+  }, [])
+
   const reset = useCallback(() => setState(INITIAL), [])
 
   const value = useMemo<LearnStore>(
@@ -168,6 +180,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       setClaudeMd,
       appendNote,
       setClaudeMdOpen,
+      markSendoffSeen,
       reset,
     }),
     [
@@ -178,6 +191,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       setClaudeMd,
       appendNote,
       setClaudeMdOpen,
+      markSendoffSeen,
       reset,
     ],
   )

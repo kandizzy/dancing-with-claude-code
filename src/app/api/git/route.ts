@@ -2,13 +2,25 @@ import { spawn } from 'node:child_process'
 
 export const runtime = 'nodejs'
 
-// Safety: branch names this route will accept. `feature/` prefix + lowercase slug only.
-// Refusing anything else keeps F5 from mutating arbitrary branch names like `main` or `HEAD`.
-const ALLOWED_BRANCH = /^feature\/[a-z0-9][a-z0-9-]{0,80}$/
+// Branches F5 must never create, merge, or delete. The base branch passed in for a
+// merge/discard target is allowed to be one of these (merging into `main` is normal) —
+// but the F5 working branch itself never can be.
+const PROTECTED_BRANCHES = new Set(['HEAD', 'main', 'master'])
 
-// Base branch to merge/return to. We assume `main` — change here if the host repo uses
-// `master` or something else.
-const BASE_BRANCH = 'main'
+// Loose git-ref validation — any reasonable branch name, not just `feature/...`. Real
+// users (and students who already work on their own branches) aren't limited to one
+// prefix. Still rejects shell-unsafe and malformed names so the route can't be coaxed
+// into operating on something dangerous.
+function branchNameError(value: string, label: string): string | null {
+  if (!value) return `${label} is required`
+  if (value.length > 200) return `${label} is too long`
+  if (!/^[A-Za-z0-9._/-]+$/.test(value)) {
+    return `${label} may only contain letters, numbers, and . _ / -`
+  }
+  if (value.includes('..') || value.includes('//')) return `${label} is malformed`
+  if (/^[./]|[./]$/.test(value)) return `${label} can't start or end with . or /`
+  return null
+}
 
 type Ok<T> = { ok: true } & T
 type Err = { ok: false; error: string }
@@ -64,8 +76,8 @@ export async function GET() {
 
 type Action =
   | { action: 'branch'; name: string }
-  | { action: 'merge'; name: string }
-  | { action: 'discard'; name: string }
+  | { action: 'merge'; name: string; baseBranch: string }
+  | { action: 'discard'; name: string; baseBranch: string }
 
 export async function POST(req: Request) {
   if (process.env.NODE_ENV === 'production') {
@@ -82,15 +94,35 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: 'missing action' }, { status: 400 })
   }
 
+  // The F5 working branch — created, merged, then deleted. Must be a valid name and
+  // must not be a protected branch (we never create/merge/delete main itself).
   const name = (body as { name?: string }).name ?? ''
-  if (!ALLOWED_BRANCH.test(name)) {
+  const nameErr = branchNameError(name, 'branch name')
+  if (nameErr) {
+    return Response.json({ ok: false, error: nameErr }, { status: 400 })
+  }
+  if (PROTECTED_BRANCHES.has(name)) {
     return Response.json(
-      {
-        ok: false,
-        error: `branch name must match ${ALLOWED_BRANCH.source} (e.g. feature/my-change)`,
-      },
+      { ok: false, error: `refusing to operate on protected branch "${name}"` },
       { status: 400 },
     )
+  }
+
+  // For merge/discard, baseBranch is where we check out back to (and, for merge, what we
+  // merge into). It may legitimately be `main` — the protected check doesn't apply here.
+  let baseBranch = ''
+  if (body.action === 'merge' || body.action === 'discard') {
+    baseBranch = (body as { baseBranch?: string }).baseBranch ?? ''
+    const baseErr = branchNameError(baseBranch, 'base branch')
+    if (baseErr) {
+      return Response.json({ ok: false, error: baseErr }, { status: 400 })
+    }
+    if (baseBranch === name) {
+      return Response.json(
+        { ok: false, error: 'base branch and working branch must differ' },
+        { status: 400 },
+      )
+    }
   }
 
   if (body.action === 'branch') {
@@ -105,9 +137,10 @@ export async function POST(req: Request) {
   }
 
   if (body.action === 'merge') {
-    // Switch to base then merge the feature branch in. If a merge conflict happens we surface
-    // the message rather than auto-aborting — the user can sort it out manually.
-    const co = await runGit(['checkout', BASE_BRANCH])
+    // Switch back to the base branch the user started from, then merge the working branch
+    // in. If a merge conflict happens we surface the message rather than auto-aborting —
+    // the user can sort it out manually.
+    const co = await runGit(['checkout', baseBranch])
     if (!co.ok) {
       return Response.json({ ok: false, error: co.error }, { status: 500 })
     }
@@ -115,12 +148,12 @@ export async function POST(req: Request) {
     if (!merge.ok) {
       return Response.json({ ok: false, error: merge.error }, { status: 500 })
     }
-    return Response.json({ ok: true, mergedInto: BASE_BRANCH })
+    return Response.json({ ok: true, mergedInto: baseBranch })
   }
 
   if (body.action === 'discard') {
-    // Switch off the branch first — git refuses to delete the branch you're on.
-    const co = await runGit(['checkout', BASE_BRANCH])
+    // Switch back to the base branch first — git refuses to delete the branch you're on.
+    const co = await runGit(['checkout', baseBranch])
     if (!co.ok) {
       return Response.json({ ok: false, error: co.error }, { status: 500 })
     }

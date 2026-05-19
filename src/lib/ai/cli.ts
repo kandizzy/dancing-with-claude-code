@@ -24,6 +24,32 @@ const TEACHING_SURFACE_PREAMBLE = `You are answering inside a browser-based teac
 
 Do not narrate your tool use. Do not announce which files you've already read or plan to read. Do not announce that a task list ("TodoWrite") is unnecessary. Do not preface answers with meta-commentary about what you're about to do. Just answer the user directly, the way a thoughtful collaborator would in conversation. If you read files to ground your answer, that's fine — cite specific facts you found, but do not narrate the act of reading.`
 
+export type ClaudeCliOptions = {
+  cwd?: string
+  resumeSessionId?: string | null
+  allowedTools?: ReadonlyArray<string>
+  /**
+   * Whether to use the Claude Code system-prompt preset. The preset is a few
+   * thousand tokens of agent-loop scaffolding (TodoWrite, file traversal,
+   * sub-agent planning) prepended to every request. Worth it when the figure
+   * actually uses tools (figure 5's Edit/Write step); pure overhead when the
+   * figure is doing text-only Q&A (figures 1, 2, 3, 4).
+   *
+   * Default false. Figure 5 opts in by passing true.
+   */
+  useClaudeCodePreset?: boolean
+  /**
+   * Whether to read CLAUDE.md and .claude/commands/ from cwd on every call.
+   * The contents of those files get prepended to the prompt, so this is the
+   * other big lever on token cost. Figures 1 and 2 need it (CLAUDE.md is
+   * the lesson; slash commands live in .claude/commands/). Figures 3, 4, 5
+   * don't need it and can save the tokens by skipping it.
+   *
+   * Default false.
+   */
+  loadProjectContext?: boolean
+}
+
 /**
  * Run a turn against Claude via the Agent SDK.
  *
@@ -42,30 +68,31 @@ Do not narrate your tool use. Do not announce which files you've already read or
 export async function claudeCli(
   systemPrompt: string,
   userPrompt: string,
-  options: {
-    cwd?: string
-    resumeSessionId?: string | null
-    allowedTools?: ReadonlyArray<string>
-  } = {},
+  options: ClaudeCliOptions = {},
 ): Promise<ClaudeCliResult> {
+  const usePreset = options.useClaudeCodePreset === true
+  const loadProject = options.loadProjectContext === true
   try {
     const iterator = query({
       prompt: userPrompt,
       options: {
-        // Append the caller's per-figure instructions onto the Claude Code preset, with
-        // the teaching-surface preamble in front so the no-narration rule is the FIRST
-        // thing the model sees in the appended block. Ordering matters: the preamble has
-        // to come before any caller instructions that might encourage Claude to "explain
-        // its reasoning" (which gets read by the preset as license to narrate).
-        systemPrompt: {
-          type: 'preset',
-          preset: 'claude_code',
-          append: `${TEACHING_SURFACE_PREAMBLE}\n\n${systemPrompt}`,
-        },
-        // settingSources: ['project'] lets the SDK pick up CLAUDE.md and .claude/commands/
-        // from cwd the same way interactive Claude Code does. Without it, the SDK runs
-        // in a clean temp dir and never sees the project.
-        settingSources: ['project'],
+        // System prompt construction: with the Claude Code preset (figure 5), we
+        // append the teaching preamble + caller text. Without the preset (most
+        // figures), we pass a clean custom system prompt — saves thousands of
+        // tokens per call. The teaching preamble is still included as a leading
+        // instruction because it suppresses the narration habit even outside the
+        // preset.
+        systemPrompt: usePreset
+          ? {
+              type: 'preset',
+              preset: 'claude_code',
+              append: `${TEACHING_SURFACE_PREAMBLE}\n\n${systemPrompt}`,
+            }
+          : `${TEACHING_SURFACE_PREAMBLE}\n\n${systemPrompt}`,
+        // Project context (CLAUDE.md, .claude/commands/) is opt-in. Figures 1
+        // and 2 need it because the lesson IS the file or the commands. Others
+        // pay tokens for nothing if they enable it.
+        ...(loadProject ? { settingSources: ['project' as const] } : {}),
         cwd: options.cwd ?? process.cwd(),
         ...(options.resumeSessionId ? { resume: options.resumeSessionId } : {}),
         ...(options.allowedTools && options.allowedTools.length > 0

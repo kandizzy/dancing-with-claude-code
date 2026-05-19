@@ -211,6 +211,10 @@ export function Figure2Workspace({ figure }: Props) {
         systemPrompt: F2_SYSTEM,
         userPrompt: promptToSend,
         sessionId,
+        // Figure 2 needs both: project context loads .claude/commands/ so slash
+        // commands work, and CLAUDE.md so the commands can reference notes.
+        // No agent preset — this is text Q&A, not file editing.
+        loadProjectContext: true,
       })
       setMessages((m) => [
         ...m,
