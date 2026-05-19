@@ -77,6 +77,8 @@ export function Figure3Workspace({ figure }: Props) {
       const result = await ask({
         systemPrompt: FIGURE_3_EXTRA_SYSTEM,
         userPrompt: composed,
+        // No project context needed — figure 3 is about directive composition,
+        // not the project's own files. Saves CLAUDE.md from every refine call.
       })
       setReply(result.text)
       // Gate fires on the user's authored act — submitting a complete directive.
@@ -106,6 +108,9 @@ export function Figure3Workspace({ figure }: Props) {
         systemPrompt:
           'You are running against a real local Next.js project. Read the named file, then describe in 2-3 sentences exactly what change you would make. Be specific about the lines you would modify. Do not actually edit anything — just describe the change so the user can compare it to what their terminal Claude Code would do.',
         userPrompt: reply,
+        // Allow Read so Claude can look at the named file before describing the
+        // change. Project context (CLAUDE.md) isn't needed here.
+        allowedTools: ['Read'],
       })
       setRunOutput(result.text.trim())
     } catch (err) {

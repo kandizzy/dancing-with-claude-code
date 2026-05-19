@@ -12,6 +12,9 @@ type Body = {
   // Tool names to allow Claude to call. Defaults to none. Figure 5's run step passes
   // ['Edit', 'Write']. Sanitized server-side so a client can't ask for arbitrary tools.
   allowedTools?: ReadonlyArray<string>
+  // Optional. See AiCallInput for cost-tradeoff notes.
+  useClaudeCodePreset?: boolean
+  loadProjectContext?: boolean
 }
 
 function sanitizeSessionId(raw: unknown): string | undefined {
@@ -52,6 +55,10 @@ export async function POST(req: Request) {
     userPrompt,
     resumeSessionId: sanitizeSessionId(body.resumeSessionId),
     allowedTools: sanitizeAllowedTools(body.allowedTools),
+    // Booleans are forwarded only when explicitly true — anything else
+    // falls through to the lib's default (false).
+    useClaudeCodePreset: body.useClaudeCodePreset === true,
+    loadProjectContext: body.loadProjectContext === true,
     // The Agent SDK reads CLAUDE.md and .claude/commands/ from cwd, which is the prototype
     // directory when started via `npm run dev`.
     cwd: process.cwd(),

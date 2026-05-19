@@ -13,3 +13,4 @@ The person using this app might be a designer, a student, or anyone exploring ho
 - Stick to MediaPipe. Don't suggest swapping in a different library (like OpenCV or YOLO) unless the user asks for that specifically.
 
 ## Notes
+

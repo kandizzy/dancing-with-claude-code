@@ -80,6 +80,8 @@ export function Figure4Workspace({ figure }: Props) {
       const result = await ask({
         systemPrompt: FIGURE_4_EXTRA_SYSTEM,
         userPrompt: composed,
+        // CLAUDE.md is already inlined in the user prompt above — no need to
+        // load it again via project context. Saves the duplicate read.
       })
       const extracted = extractMarkdownBlock(result.text)
       if (!extracted) {
@@ -283,7 +285,15 @@ function collapseCosmeticDiff(changes: Change[]): Change[] {
       ((cur.removed && next.added) || (cur.added && next.removed)) &&
       normalize(cur.value) === normalize(next.value)
     ) {
-      result.push({ value: cur.removed ? next.value : cur.value })
+      // Keep the "add" side's value (it's the version that survives) and emit it as a
+      // proper unchanged hunk — diff's Change type needs added/removed/count, not just value.
+      const mergedValue = cur.removed ? next.value : cur.value
+      result.push({
+        value: mergedValue,
+        added: false,
+        removed: false,
+        count: mergedValue.split('\n').length,
+      })
       i += 2
       continue
     }

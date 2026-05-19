@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono, Caveat } from 'next/font/google'
-import { ChatProvider } from '@/lib/chat-store'
 import { LearnProvider } from '@/lib/learn-store'
-import { AppShell } from './shell'
 import './globals.css'
 
 const geistSans = Geist({
@@ -37,11 +35,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} font-sans antialiased`}
       >
-        <ChatProvider>
-          <LearnProvider>
-            <AppShell>{children}</AppShell>
-          </LearnProvider>
-        </ChatProvider>
+        <LearnProvider>
+          <div className="h-dvh">{children}</div>
+        </LearnProvider>
       </body>
     </html>
   )

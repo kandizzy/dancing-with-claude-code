@@ -1,12 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useLearnStore } from '@/lib/learn-store'
-import { ask, gitAction, gitStatus, readDiff, type GitStatus } from '@/lib/ai/client'
+import { ask, gitAction, gitStatus, readDiff, isOverloadedError, isRateLimitError, type GitStatus } from '@/lib/ai/client'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
-import { Shape } from './Shape'
-import { Dancer } from '@/components/explore/Dancer'
+import { OverloadNotice } from './OverloadNotice'
 import { Button } from '@/components/ui'
 import {
   ArrowRight,
@@ -58,8 +56,6 @@ const STARTERS: Array<{ goal: string; scope: string }> = [
   },
 ]
 
-const STARTER_GOALS = STARTERS.map((s) => s.goal)
-
 export function Figure5Workspace({ figure }: Props) {
   const { awardShape, isCompleted } = useLearnStore()
   const completed = isCompleted(figure.id)
@@ -70,16 +66,29 @@ export function Figure5Workspace({ figure }: Props) {
   const [directive, setDirective] = useState('')
   const [refining, setRefining] = useState(false)
   const [refineError, setRefineError] = useState<string | null>(null)
+  // When refineDirective hits a 529 or 429, render OverloadNotice with the
+  // matching kind instead of the red refineError text. null = no transient.
+  const [refineTransient, setRefineTransient] = useState<
+    'overloaded' | 'rate-limit' | null
+  >(null)
 
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [creatingBranch, setCreatingBranch] = useState(false)
   const [branchError, setBranchError] = useState<string | null>(null)
   const [branchCreated, setBranchCreated] = useState(false)
+  // The branch the user was on when they created the F5 branch — merge/discard return
+  // here. Not always `main`: a real user (or a student already working) may have started
+  // from their own branch. Captured at branch-creation time.
+  const [baseBranch, setBaseBranch] = useState<string | null>(null)
 
   const [runningClaude, setRunningClaude] = useState(false)
   const [claudeOutput, setClaudeOutput] = useState<string | null>(null)
   const [claudeError, setClaudeError] = useState<string | null>(null)
+  // Same shape as refineTransient — transient error from the run call.
+  const [runTransient, setRunTransient] = useState<
+    'overloaded' | 'rate-limit' | null
+  >(null)
 
   const [diffText, setDiffText] = useState<string | null>(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
@@ -88,14 +97,10 @@ export function Figure5Workspace({ figure }: Props) {
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
   const [decision, setDecision] = useState<'merged' | 'discarded' | null>(null)
 
-  // Edit-directive modal state. Replaces the OS-level window.prompt that didn't match the
-  // rest of the design system and couldn't handle multi-line text comfortably. Pattern
-  // mirrors PromoteButton.tsx for consistency — same overlay, same Escape/scroll-lock
-  // behavior, same card shape.
+  // Edit-directive modal state.
   const [editOpen, setEditOpen] = useState(false)
   const [editDraft, setEditDraft] = useState('')
 
-  // Escape closes the edit modal.
   useEffect(() => {
     if (!editOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -105,7 +110,6 @@ export function Figure5Workspace({ figure }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [editOpen])
 
-  // Lock body scroll while the modal is open so the page behind doesn't drift.
   useEffect(() => {
     if (!editOpen) return
     const prev = document.body.style.overflow
@@ -115,9 +119,16 @@ export function Figure5Workspace({ figure }: Props) {
     }
   }, [editOpen])
 
-  const branchName = `feature/${slugify(goal || 'unnamed-change')}`
+  // Branch name: defaults to `feature/<slug-of-goal>` and tracks the goal as the user
+  // types — until they edit the name field by hand, at which point it stops auto-syncing
+  // and keeps whatever they wrote.
+  const derivedBranchName = `feature/${slugify(goal || 'unnamed-change')}`
+  const [branchName, setBranchName] = useState(derivedBranchName)
+  const [branchNameEdited, setBranchNameEdited] = useState(false)
+  useEffect(() => {
+    if (!branchNameEdited) setBranchName(derivedBranchName)
+  }, [derivedBranchName, branchNameEdited])
 
-  // Fetch current branch + clean state on mount so we can warn before any git mutation.
   useEffect(() => {
     gitStatus()
       .then((s) => {
@@ -133,6 +144,15 @@ export function Figure5Workspace({ figure }: Props) {
 
   const createBranch = useCallback(async () => {
     if (creatingBranch || branchCreated) return
+    // Capture the branch we're starting from — merge/discard will return here. If we're
+    // on a detached HEAD there's no branch to return to, so refuse early with a clear note.
+    const base = status?.branch ?? null
+    if (!base || base === 'HEAD') {
+      setBranchError(
+        "Can't tell which branch you're on (detached HEAD). Check out a branch in your terminal first, then reload.",
+      )
+      return
+    }
     setCreatingBranch(true)
     setBranchError(null)
     const res = await gitAction('branch', branchName)
@@ -141,24 +161,35 @@ export function Figure5Workspace({ figure }: Props) {
       setBranchError(res.error)
       return
     }
+    setBaseBranch(base)
     setBranchCreated(true)
     setStatus((s) => (s ? { ...s, branch: branchName } : s))
-  }, [creatingBranch, branchCreated, branchName])
+  }, [creatingBranch, branchCreated, branchName, status])
 
   const refineDirective = useCallback(async () => {
     if (!goal.trim() || !scope.trim() || refining) return
     setRefining(true)
     setRefineError(null)
+    setRefineTransient(null)
     setDirective('')
     try {
       const composed = `Branch: ${branchName}\nTarget (file or segment): ${scope.trim()}\nGoal of the change: ${goal.trim()}`
       const result = await ask({
         systemPrompt: FIGURE_5_EXTRA_SYSTEM,
         userPrompt: composed,
+        // Refine is pure text composition — no preset, no project context.
       })
       setDirective(result.text.trim())
     } catch (err) {
-      setRefineError((err as Error)?.message ?? 'Request failed')
+      // 529 and 429 get the calm notice treatment. Everything else falls
+      // through to the red refineError text.
+      if (isOverloadedError(err)) {
+        setRefineTransient('overloaded')
+      } else if (isRateLimitError(err)) {
+        setRefineTransient('rate-limit')
+      } else {
+        setRefineError((err as Error)?.message ?? 'Request failed')
+      }
     } finally {
       setRefining(false)
     }
@@ -169,16 +200,29 @@ export function Figure5Workspace({ figure }: Props) {
     setRunningClaude(true)
     setClaudeOutput(null)
     setClaudeError(null)
+    setRunTransient(null)
     try {
       const result = await ask({
         systemPrompt:
-          "You are running against a real local Next.js prototype repo. The user has given you a scoped directive that names exactly one target file and one change. Use the Edit tool to actually make that change in the named file \u2014 do not just describe it, do not just propose it. After editing, reply with one short sentence summarizing the edit you made. Do not touch any file other than the one named in the directive.",
+          "You are running against a real local Next.js prototype repo. The user has given you a scoped directive that names exactly one target file and one change. Use the Edit tool to actually make that change in the named file — do not just describe it, do not just propose it. After editing, reply with one short sentence summarizing the edit you made. Do not touch any file other than the one named in the directive.",
         userPrompt: directive,
         allowedTools: ['Edit', 'Read'],
+        // The Run step actually edits files, so it needs the full agent
+        // preset (TodoWrite, file planning) and project context (CLAUDE.md
+        // for project conventions). This is the ONLY call site that uses
+        // these.
+        useClaudeCodePreset: true,
+        loadProjectContext: true,
       })
       setClaudeOutput(result.text.trim())
     } catch (err) {
-      setClaudeError((err as Error)?.message ?? 'Claude run failed')
+      if (isOverloadedError(err)) {
+        setRunTransient('overloaded')
+      } else if (isRateLimitError(err)) {
+        setRunTransient('rate-limit')
+      } else {
+        setClaudeError((err as Error)?.message ?? 'Claude run failed')
+      }
     } finally {
       setRunningClaude(false)
     }
@@ -199,63 +243,51 @@ export function Figure5Workspace({ figure }: Props) {
       if (finalizing || decision != null) return
       setFinalizing(true)
       setFinalizeError(null)
-      const res = await gitAction(kind === 'merged' ? 'merge' : 'discard', branchName)
-      setFinalizing(false)
+      const res = await gitAction(
+        kind === 'merged' ? 'merge' : 'discard',
+        branchName,
+        baseBranch ?? undefined,
+      )
       if (!res.ok) {
-        setFinalizeError(res.error)
+        setFinalizing(false)
+        setFinalizeError(friendlyGitError(res.error))
         return
       }
+      // The page owns the pause before the reward overlay (a 1000ms timer
+      // after the fifth shape is awarded). No artificial delay here — the
+      // button spinner already gave the click feedback.
+      setFinalizing(false)
       setDecision(kind)
-      setStatus((s) => (s ? { ...s, branch: 'main' } : s))
+      setStatus((s) => (s ? { ...s, branch: baseBranch ?? s.branch } : s))
       if (!completed) {
-        awardShape(figure.id, figure.shape, kind)
+        // Evidence encodes both the decision and the branch name so the
+        // send-off (rendered at the page level) can show the punchy
+        // figure-5-specific copy with the actual branch name regardless of
+        // which figure the user navigates to next. Format: "merged:<branch>"
+        // or "discarded:<branch>".
+        awardShape(figure.id, figure.shape, `${kind}:${branchName}`)
       }
     },
-    [finalizing, decision, branchName, completed, figure, awardShape],
+    [finalizing, decision, branchName, baseBranch, completed, figure, awardShape],
   )
 
-  // Reset every downstream state when the user picks a different starter or types
-  // a different goal. Without this, an earlier walkthrough's directive, branch flag,
-  // and diff would still be sitting in state when the user picks something new — leading
-  // to the screenshot bug where the goal said "rename heading" but the visible directive
-  // was the old confidence-chip one from a prior pass.
-  //
-  // We also prefill the scope field with a paired suggestion so the user doesn't have
-  // to type a file path from scratch — they can still edit it, but the demo flow is
-  // cleaner with both fields populated by a single click.
   const pickStarterGoal = useCallback((starter: typeof STARTERS[number]) => {
     setGoal(starter.goal)
+    setBranchNameEdited(false)
+    setBaseBranch(null)
     setScope(starter.scope)
     setDirective('')
     setRefineError(null)
+    setRefineTransient(null)
     setBranchCreated(false)
     setBranchError(null)
     setClaudeOutput(null)
     setClaudeError(null)
+    setRunTransient(null)
     setDiffText(null)
   }, [])
 
   const advance = (to: Step) => setStep(to)
-
-  const fullReset = () => {
-    setStep(1)
-    setGoal('')
-    setScope('')
-    setDirective('')
-    setRefineError(null)
-    setBranchCreated(false)
-    setBranchError(null)
-    setClaudeOutput(null)
-    setClaudeError(null)
-    setDiffText(null)
-    setFinalizeError(null)
-    setDecision(null)
-  }
-
-  // Once a decision is made, render the send-off in place of the stepped walkthrough.
-  if (decision != null) {
-    return <Sendoff decision={decision} branchName={branchName} onReset={fullReset} />
-  }
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -295,7 +327,7 @@ export function Figure5Workspace({ figure }: Props) {
             n={1}
             icon={<GitBranch className="size-4" />}
             title="Branch — give the work its own sandbox"
-            why="A branch is a parallel copy of the repo. Anything Claude does in it is contained. If it goes sideways you delete the branch and nothing in main was ever touched."
+            why="A branch is a parallel copy of the repo. Anything Claude does in it is contained. If it goes sideways you delete the branch and the branch you started from was never touched."
           >
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-text-tertiary text-xs font-semibold uppercase tracking-wide">
@@ -325,6 +357,27 @@ export function Figure5Workspace({ figure }: Props) {
 
             {goal.trim() && (
               <div className="border-border-subtle bg-page rounded-md border p-3">
+                {!branchCreated && (
+                  <label className="mb-2 flex flex-col gap-1">
+                    <span className="text-text-tertiary text-[10px] font-semibold uppercase tracking-[0.12em]">
+                      Branch name
+                    </span>
+                    <input
+                      type="text"
+                      value={branchName}
+                      onChange={(e) => {
+                        setBranchNameEdited(true)
+                        setBranchName(e.target.value)
+                      }}
+                      spellCheck={false}
+                      className="text-text-primary border-border-subtle bg-surface rounded-md border px-2 py-1 font-mono text-xs outline-none focus:border-[color:var(--color-accent-strong)]"
+                    />
+                    <span className="text-text-tertiary text-[10px]">
+                      Defaults to <code className="font-mono">feature/&lt;your-goal&gt;</code> —
+                      a common convention. Edit it to anything you like.
+                    </span>
+                  </label>
+                )}
                 <div className="text-text-tertiary mb-1 text-[10px] uppercase tracking-[0.12em]">
                   We&apos;ll run this for you
                 </div>
@@ -434,6 +487,17 @@ export function Figure5Workspace({ figure }: Props) {
               </Button>
             )}
 
+            {/* Transient error notice for the refine call (529 or 429).
+               Takes precedence over the red refineError text; they can't be
+               set at once because refineDirective clears each before trying. */}
+            {refineTransient && (
+              <OverloadNotice
+                kind={refineTransient}
+                onRetry={refineDirective}
+                retrying={refining}
+              />
+            )}
+
             {refineError && (
               <div className="text-danger text-xs">Refine failed: {refineError}</div>
             )}
@@ -486,6 +550,16 @@ export function Figure5Workspace({ figure }: Props) {
                       <p className="text-text-secondary m-0 whitespace-pre-wrap leading-relaxed">
                         {claudeOutput}
                       </p>
+                    </div>
+                  )}
+                  {/* Transient error notice for the run-claude-p call. */}
+                  {runTransient && (
+                    <div className="mt-2">
+                      <OverloadNotice
+                        kind={runTransient}
+                        onRetry={runClaude}
+                        retrying={runningClaude}
+                      />
                     </div>
                   )}
                   {claudeError && (
@@ -559,7 +633,9 @@ export function Figure5Workspace({ figure }: Props) {
                 <div className="text-text-tertiary mb-1 text-[10px] uppercase tracking-[0.12em]">
                   Merge — Claude did what you asked
                 </div>
-                <CommandLine command={`git checkout main && git merge ${branchName}`} />
+                <CommandLine
+                  command={`git checkout ${baseBranch ?? 'main'} && git merge ${branchName}`}
+                />
                 <Button
                   onClick={() => decide('merged')}
                   variant="primary"
@@ -571,7 +647,7 @@ export function Figure5Workspace({ figure }: Props) {
                   ) : (
                     <GitMerge className="size-4" />
                   )}
-                  Merge into main
+                  Merge into {baseBranch ?? 'main'}
                 </Button>
               </div>
 
@@ -579,7 +655,9 @@ export function Figure5Workspace({ figure }: Props) {
                 <div className="text-text-tertiary mb-1 text-[10px] uppercase tracking-[0.12em]">
                   Discard — Claude went sideways
                 </div>
-                <CommandLine command={`git checkout main && git branch -D ${branchName}`} />
+                <CommandLine
+                  command={`git checkout ${baseBranch ?? 'main'} && git branch -D ${branchName}`}
+                />
                 <Button onClick={() => decide('discarded')} className="mt-2" disabled={finalizing}>
                   {finalizing ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -606,12 +684,10 @@ export function Figure5Workspace({ figure }: Props) {
       <ShapeAwardBanner
         figureId={figure.id}
         shapeLabel="Composite"
-        copy="You walked the five beats: branch, scope, ask, diff, decide. The composite isn't a single move — it's the rhythm of working with Claude on something you don't want refactored under you."
+        copy="You walked the five beats: branch, scope, ask, diff, decide. The composite is the whole loop, not one move — it's how you keep Claude from refactoring everything under you."
       />
 
-      {/* Edit-directive modal. Opens from beat 3's "Edit before running" link. Pattern
-          mirrors PromoteButton.tsx — same overlay, same card shape — so the prototype's
-          two modals feel like one component family. */}
+      {/* Edit-directive modal. */}
       {editOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
@@ -675,68 +751,6 @@ export function Figure5Workspace({ figure }: Props) {
   )
 }
 
-function Sendoff({
-  decision,
-  branchName,
-  onReset,
-}: {
-  decision: 'merged' | 'discarded'
-  branchName: string
-  onReset: () => void
-}) {
-  return (
-    // Cover the figure page area but leave the navbar visible at top. The page's
-    // top padding (py-6 = 24px) plus the header content (≈56px) puts the navbar's
-    // bottom edge around 80px from the viewport top — start the overlay there so
-    // the back-arrow + title stay accessible during the send-off.
-    <div className="fixed inset-x-0 bottom-0 top-[80px] z-40 flex items-center justify-center overflow-y-auto bg-[color:var(--color-page)] px-6 py-10">
-      <div className="grid w-full max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
-        {/* Dancer at its natural size, the visual centerpiece on the left. */}
-        <div className="flex items-center justify-center">
-          <Dancer />
-        </div>
-
-        {/* Copy column on the right — heading, summary, follow-up commands, controls. */}
-        <div className="flex flex-col items-start gap-6 text-left">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-text-primary font-serif text-3xl m-0 leading-tight">
-              You&apos;re ready to use Claude Code anywhere.
-            </h2>
-            <p className="text-text-secondary m-0 text-sm leading-relaxed">
-              You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
-              <code className="font-mono text-xs">{branchName}</code>{' '}
-              {decision === 'merged'
-                ? 'into main. That change is on disk in this very repo.'
-                : 'and main was never touched. The branch is gone.'}{' '}
-              You did the whole loop — branch, scope, ask, diff, decide — on a real
-              codebase. These five moves work the same wherever Claude Code runs:
-              terminal, desktop app, API, here. The surface is yours to pick. The moves
-              are the lesson.
-            </p>
-          </div>
-
-          <div className="border-border-subtle bg-page w-full rounded-md border p-3 text-left">
-            <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
-              From here — pick the surface that fits, and try the loop on something new
-            </div>
-            <CommandLine command="git checkout -b feature/your-next-thing" />
-            <CommandLine command='claude -p "what you want, scoped to one file"' />
-            <CommandLine command="git diff" />
-            <CommandLine command="# merge or discard, just like you did here" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button onClick={onReset}>Walk through again</Button>
-            <Link href="/" className="text-text-tertiary hover:text-text-primary text-sm">
-              Back to all figures
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function slugify(s: string): string {
   return (
     s
@@ -747,6 +761,21 @@ function slugify(s: string): string {
       .slice(0, 6)
       .join('-') || 'change'
   )
+}
+
+// Translate raw git stderr into something a learner can act on. The common one in
+// practice: the repo already has unresolved merge conflicts, so `git checkout main`
+// refuses ("you need to resolve your current index first" / "unmerged"). That's not
+// an F5 bug — it's the working tree's pre-existing state — so we say so plainly.
+function friendlyGitError(raw: string): string {
+  const lower = raw.toLowerCase()
+  if (lower.includes('resolve your current index') || lower.includes('unmerged')) {
+    return 'Your working tree has unresolved merge conflicts from earlier work — git won’t switch branches until those are resolved. This isn’t about the branch you just made here; sort out the conflicts in your terminal (`git status`), then come back and decide.'
+  }
+  if (lower.includes('would be overwritten')) {
+    return 'You have uncommitted changes that switching branches would overwrite. Commit or stash them in your terminal first, then come back and decide.'
+  }
+  return raw
 }
 
 function Stepper({
@@ -854,7 +883,7 @@ function CommandLine({ command }: { command: string }) {
       await navigator.clipboard.writeText(command)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
-    } catch {}
+    } catch { }
   }
   return (
     <div className="bg-page flex items-start gap-2 rounded font-mono text-xs leading-relaxed">

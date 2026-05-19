@@ -1,65 +1,114 @@
 'use client'
 
 /**
- * The final "send-off" screen shown after the user completes figure 5's
- * walkthrough — or, increasingly, viewed standalone via `/preview/sendoff`
- * so the dancer can be iterated on without running through all five figures.
+ * The final reward screen. Lives at the figure-page level (not inside
+ * Figure5Workspace) so it can appear on whichever figure earns the user's
+ * fifth shape — students traverse the figures in any order, and the moment
+ * should land wherever they happen to be.
  *
- * Extracted from `Figure5Workspace.tsx` so the dancer + closing copy can be
- * rendered in isolation. The original lives inline in the workspace as a
- * conditional render after `decision != null`; this file is the same body
- * lifted into a standalone component with explicit props.
+ * Gating happens in the page wrapper, not here: this component just renders.
+ * The page checks `allFiveEarned && !sendoffSeen` and shows this overlay
+ * when both are true.
  */
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { Check, Copy } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Dancer } from '@/components/explore/Dancer'
 import { Button } from '@/components/ui'
+import { useLearnStore } from '@/lib/learn-store'
+import { Check, Copy } from 'lucide-react'
 
 type Props = {
-  /** Whether the user chose to merge or discard their branch. Affects the
-   *  body copy. Preview route defaults to 'merged'. */
-  decision: 'merged' | 'discarded'
-  /** The branch name shown in the body copy. Preview defaults to a generic
-   *  placeholder. */
-  branchName: string
-  /** Action for the "Walk through again" button. Preview can pass a no-op
-   *  or a back-to-home redirect. */
-  onReset: () => void
+  // 'merged' or 'discarded' if figure 5 has been completed (drives the
+  // figure-5-specific copy when applicable). Null means the user completed
+  // figure 5 earlier in some other path, or — extremely edge case — earned
+  // all five somehow without a recorded decision. We still show the screen
+  // with generic copy.
+  decision: 'merged' | 'discarded' | null
+  branchName: string | null
+  // Called when the user dismisses the send-off. Marks the moment as seen
+  // in the persisted store so returning to any figure shows the regular
+  // workspace instead of this screen. The component handles navigation
+  // itself based on which button the user clicks.
+  onDismiss: () => void
+  // True when the user reached this screen by clicking merge/discard right
+  // now (local component state in Figure5Workspace). False when they're
+  // arriving from a different figure that earned the last shape, or
+  // returning after a previous decision. Drives whether the copy is
+  // figure-5-specific or generic.
+  justDecided: boolean
 }
 
-export function Sendoff({ decision, branchName, onReset }: Props) {
+export function Sendoff({ decision, branchName, onDismiss, justDecided }: Props) {
+  const router = useRouter()
+  const { reset } = useLearnStore()
+  // Figure-5-specific copy fires when the user just decided AND we know
+  // the decision. branchName is nice-to-have — if absent we fall back to
+  // "your branch" which still lands the punch. We only switch to the
+  // generic five-moves recap when decision itself is missing.
+  const useFigureFiveCopy = justDecided && decision != null
+
+  // "Back to all figures" — dismiss the sendoff (so it won't reappear)
+  // and head to /home, the figure list page.
+  const handleBackToFigures = () => {
+    onDismiss()
+    router.push('/home')
+  }
+
+  // "Walk through again" — wipe progress and head to root. The reward is
+  // earned by walking the loop; a fresh walk-through can earn it again.
+  const handleWalkThroughAgain = () => {
+    reset()
+    router.push('/')
+  }
+
   return (
-    // Cover the figure page area but leave the navbar visible at top. The page's
-    // top padding (py-6 = 24px) plus the header content (≈56px) puts the navbar's
-    // bottom edge around 80px from the viewport top — start the overlay there so
-    // the back-arrow + title stay accessible during the send-off.
-    <div className="fixed inset-x-0 bottom-0 top-[80px] z-40 flex items-center justify-center overflow-y-auto bg-[color:var(--color-page)] px-6 py-10">
-      <div className="grid w-full max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
-        {/* Dancer at its natural size, the visual centerpiece on the left. */}
+    // Full-screen reward moment. Covers everything including the header — the
+    // send-off has its own "Back to all figures" exit, so the user is never trapped.
+    // overflow-y-auto so the content scrolls rather than clips on short viewports.
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[color:var(--color-page)] px-6 py-10">
+      <div className="grid w-full max-w-5xl grid-cols-1 items-center gap-8 md:grid-cols-2">
+        {/* The dancer — visual centerpiece. Bare (no Stage chrome), sized to the
+            viewport so it never pushes the copy column off-screen. */}
         <div className="flex items-center justify-center">
-          <Dancer />
+          <Dancer bare svgClassName="h-auto w-auto max-h-[44vh] md:max-h-[60vh]" />
         </div>
 
         {/* Copy column on the right — heading, summary, follow-up commands, controls. */}
         <div className="flex flex-col items-start gap-6 text-left">
           <div className="flex flex-col gap-3">
             <h2 className="text-text-primary font-serif text-3xl m-0 leading-tight">
-              You&apos;re ready to use Claude Code anywhere.
+              {useFigureFiveCopy
+                ? "You're ready to use Claude Code anywhere."
+                : "All five shapes — you walked the whole thing."}
             </h2>
             <p className="text-text-secondary m-0 text-sm leading-relaxed">
-              You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
-              <code className="font-mono text-xs">{branchName}</code>{' '}
-              {decision === 'merged'
-                ? 'into main. That change is on disk in this very repo.'
-                : 'and main was never touched. The branch is gone.'}{' '}
-              You did the whole loop — branch, scope, ask, diff, decide — on a real
-              codebase. These five moves work the same wherever Claude Code runs:
-              terminal, desktop app, API, here. The surface is yours to pick. The moves
-              are the lesson.
+              {useFigureFiveCopy ? (
+                <>
+                  You just {decision === 'merged' ? 'merged' : 'discarded'}{' '}
+                  {branchName != null ? (
+                    <code className="font-mono text-xs">{branchName}</code>
+                  ) : (
+                    'your branch'
+                  )}{' '}
+                  {decision === 'merged'
+                    ? 'into main. That change is on disk in this very repo.'
+                    : 'and main was never touched. The branch is gone.'}{' '}
+                  You did the whole loop — branch, scope, ask, diff, decide — on a real
+                  codebase. These five moves work the same wherever Claude Code runs:
+                  terminal, desktop app, API, here. The surface is yours to pick. The moves
+                  are the lesson.
+                </>
+              ) : (
+                <>
+                  Pin context in CLAUDE.md, lean on slash commands, scope a directive, read
+                  the diff before it lands, branch the risky stuff. These five moves work
+                  the same wherever Claude Code runs: terminal, desktop app, API, here. The
+                  surface is yours to pick. The moves are the lesson.
+                </>
+              )}
             </p>
-          </div>
+          </div >
 
           <div className="border-border-subtle bg-page w-full rounded-md border p-3 text-left">
             <div className="text-text-tertiary mb-2 text-[10px] uppercase tracking-[0.12em]">
@@ -72,23 +121,25 @@ export function Sendoff({ decision, branchName, onReset }: Props) {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={onReset}>Walk through again</Button>
-            <Link href="/" className="text-text-tertiary hover:text-text-primary text-sm">
+            <Button onClick={handleBackToFigures} variant="primary">
               Back to all figures
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+            <button
+              type="button"
+              onClick={handleWalkThroughAgain}
+              className="text-text-tertiary hover:text-text-primary text-sm"
+            >
+              Walk through again
+            </button>
+          </div >
+        </div >
+      </div >
+    </div >
   )
 }
 
-/**
- * Inline copy-to-clipboard command row. Duplicated from `Figure5Workspace.tsx`
- * (the original had it as an inner helper). When/if more places need this we
- * should lift it into a shared component; for now keeping it local to Sendoff
- * avoids over-extracting before there's a real second user.
- */
+// Copy-to-clipboard command row. Local to this file (not shared) — the
+// figure 5 workspace has its own version with the same shape.
 function CommandLine({ command }: { command: string }) {
   const [copied, setCopied] = useState(false)
   const onCopy = async () => {
@@ -96,7 +147,9 @@ function CommandLine({ command }: { command: string }) {
       await navigator.clipboard.writeText(command)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
-    } catch {}
+    } catch {
+      // Clipboard may be unavailable in some browser contexts; silent failure is fine.
+    }
   }
   return (
     <div className="bg-page flex items-start gap-2 rounded font-mono text-xs leading-relaxed">

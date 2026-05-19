@@ -57,7 +57,16 @@ const SKIRT_SHIMMER_AMP = 3.5
 const SPOTLIGHT_PULSE_MS = 6400
 const SPOTLIGHT_PULSE_AMP = 0.08
 
-export function Dancer() {
+// `bare` renders only the dancer SVG, no Stage card / title / caption — for the
+// figure-5 send-off, which supplies its own surrounding copy. `svgClassName` overrides
+// the default fixed height so callers can size the figure to their layout.
+export function Dancer({
+  bare = false,
+  svgClassName,
+}: {
+  bare?: boolean
+  svgClassName?: string
+} = {}) {
   const spotlightRef = useRef<SVGCircleElement | null>(null)
   const headRef = useRef<SVGGElement | null>(null)
   const torsoRef = useRef<SVGGElement | null>(null)
@@ -179,18 +188,13 @@ export function Dancer() {
   const { head, torso, leftLeg, rightLeg, leftArm, rightArm, skirtArcs } =
     DANCER_POSE
 
-  return (
-    <Stage
-      title="A dancer"
-      caption="An exploration of the basic elements of theatrical creation and design"
+  const svg = (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className={svgClassName ?? 'h-[540px] w-auto'}
+      role="img"
+      aria-label="A Schlemmer-style marionette composed of the five earned shapes from the Shapes tab"
     >
-      <div className="flex items-center justify-center">
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="h-[540px] w-auto"
-          role="img"
-          aria-label="A Schlemmer-style marionette composed of the five earned shapes from the Shapes tab"
-        >
           <defs>
             <radialGradient id="spotlight-wash" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.18" />
@@ -381,8 +385,17 @@ export function Dancer() {
               />
             </g>
           </g>
-        </svg>
-      </div>
+    </svg>
+  )
+
+  if (bare) return svg
+
+  return (
+    <Stage
+      title="A dancer"
+      caption="An exploration of the basic elements of theatrical creation and design"
+    >
+      <div className="flex items-center justify-center">{svg}</div>
     </Stage>
   )
 }
