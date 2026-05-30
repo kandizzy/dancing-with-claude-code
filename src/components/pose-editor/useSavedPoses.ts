@@ -5,7 +5,7 @@
  * persisted to localStorage so they survive page reloads.
  *
  * Naming: each pose has a user-supplied name (e.g. "walking forward", "bow",
- * "kick left"). Names don't have to be unique \u2014 the ID is. The user can
+ * "kick left"). Names don't have to be unique — the ID is. The user can
  * rename freely.
  *
  * Loading a pose replaces the current scene's shapes (not its viewBox or
@@ -28,7 +28,7 @@ function loadPersistedPoses(): Pose[] {
     if (!stored) return []
     const parsed = JSON.parse(stored) as Pose[]
     if (!Array.isArray(parsed)) return []
-    // Cheap shape validation \u2014 enough to reject obvious corruption.
+    // Cheap shape validation — enough to reject obvious corruption.
     return parsed.filter(
       (p) =>
         p &&

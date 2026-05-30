@@ -2,12 +2,12 @@
  * Top-level pose editor component.
  *
  * Phase 1: scene renders, side panel shows shape list.
- * Phase 2: selection \u2014 click a shape on canvas or in the panel to select it.
- * Phase 3: vertex handles \u2014 drag the selected shape's vertices to reshape it.
+ * Phase 2: selection — click a shape on canvas or in the panel to select it.
+ * Phase 3: vertex handles — drag the selected shape's vertices to reshape it.
  * Phase 3.1: undo / redo + localStorage persistence of current scene.
- * Phase 3.2: rotation control \u2014 anchor and rotation handles per shape.
- * Phase 4: named poses \u2014 save / load / rename / delete.
- * Phase 5: moves \u2014 per-shape animation timelines built from poses. Playback
+ * Phase 3.2: rotation control — anchor and rotation handles per shape.
+ * Phase 4: named poses — save / load / rename / delete.
+ * Phase 5: moves — per-shape animation timelines built from poses. Playback
  *          overrides the live scene so the dancer animates; editing is
  *          disabled while playing.
  */
@@ -190,14 +190,14 @@ export function PoseEditor() {
             Pose editor
           </h1>
           <span className="text-[var(--color-text-tertiary)] font-serif text-sm italic">
-            \u00b7 {scene.name}
+            · {scene.name}
           </span>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-[var(--color-text-tertiary)] italic">
             {isPlaying
-              ? `playing \u2014 ${currentTimeMs.toFixed(0)}ms`
+              ? `playing — ${currentTimeMs.toFixed(0)}ms`
               : selectedShapeId
                 ? `editing: ${findLabelById(scene.shapes, selectedShapeId) ?? selectedShapeId}`
                 : activePoseId
@@ -246,7 +246,7 @@ export function PoseEditor() {
               onClick={undo}
               disabled={!canUndo || isPlaying}
               className="flex items-center gap-1 rounded border border-[var(--color-border-subtle)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-state-hover)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              title="Undo (\u2318Z)"
+              title="Undo (⌘Z)"
             >
               <Undo2 className="h-3 w-3" />
               Undo
@@ -256,7 +256,7 @@ export function PoseEditor() {
               onClick={redo}
               disabled={!canRedo || isPlaying}
               className="flex items-center gap-1 rounded border border-[var(--color-border-subtle)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-state-hover)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              title="Redo (\u2318\u21e7Z)"
+              title="Redo (⌘⇧Z)"
             >
               <Redo2 className="h-3 w-3" />
               Redo

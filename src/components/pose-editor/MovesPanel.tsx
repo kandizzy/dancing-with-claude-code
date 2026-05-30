@@ -79,7 +79,7 @@ export function MovesPanel(props: MovesPanelProps) {
           type="button"
           onClick={() => {
             if (poses.length === 0) {
-              alert('Save at least one pose first \u2014 a move needs a starting pose.')
+              alert('Save at least one pose first — a move needs a starting pose.')
               return
             }
             setCreatingName('')
@@ -99,7 +99,7 @@ export function MovesPanel(props: MovesPanelProps) {
             autoFocus
             value={creatingName}
             onChange={(e) => setCreatingName(e.target.value)}
-            placeholder="Move name\u2026"
+            placeholder="Move name…"
             className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-page)] px-2 py-1 text-sm outline-none focus:border-[var(--color-accent)]"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -199,7 +199,7 @@ export function MovesPanel(props: MovesPanelProps) {
 }
 
 // ---------------------------------------------------------------------------
-// MoveEditor \u2014 displays and edits the active move.
+// MoveEditor — displays and edits the active move.
 // ---------------------------------------------------------------------------
 
 function MoveEditor({
@@ -372,7 +372,7 @@ function MoveEditor({
 }
 
 // ---------------------------------------------------------------------------
-// ClipEditor \u2014 inline editor for one clip.
+// ClipEditor — inline editor for one clip.
 // ---------------------------------------------------------------------------
 
 function ClipEditor({
@@ -411,7 +411,7 @@ function ClipEditor({
       >
         {poses.map((p) => (
           <option key={p.id} value={p.id}>
-            \u2192 {p.name}
+            → {p.name}
           </option>
         ))}
       </select>

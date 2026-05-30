@@ -5,7 +5,7 @@
  *   - Circle: center (point), radius (number)
  *   - Square / Triangle: each vertex (point)
  *   - Arc: center (point), radius (number), startAngle, endAngle (numbers,
- *          with wrap-around handling so going 350\u00b0 \u2192 10\u00b0 takes the short way)
+ *          with wrap-around handling so going 350° → 10° takes the short way)
  *   - Composite: recurse into children
  *   - Anchor (where present): interpolate as a point
  *
@@ -21,7 +21,7 @@ type Easing = 'linear' | 'ease-in-out' | 'snap'
 export function applyEasing(t: number, easing: Easing): number {
   if (easing === 'snap') return t >= 1 ? 1 : 0
   if (easing === 'linear') return clamp01(t)
-  // ease-in-out: 3t\u00b2 - 2t\u00b3 (smoothstep)
+  // ease-in-out: 3t² - 2t³ (smoothstep)
   const c = clamp01(t)
   return c * c * (3 - 2 * c)
 }
