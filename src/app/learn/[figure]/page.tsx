@@ -88,24 +88,20 @@ export default function FigurePage() {
   const [sendoffReady, setSendoffReady] = useState(false)
   const wasAllEarnedRef = useRef<boolean | null>(null)
   useEffect(() => {
-    // On the very first render, just record the current state — no animation
-    // is playing, so if it's already true we want the overlay immediately.
-    if (wasAllEarnedRef.current === null) {
-      wasAllEarnedRef.current = allFiveEarned
-      if (allFiveEarned) setSendoffReady(true)
-      return
-    }
-    // Transition from false → true: badge just landed, wait 1000ms before
-    // the overlay covers it.
-    if (!wasAllEarnedRef.current && allFiveEarned) {
-      wasAllEarnedRef.current = true
+    const prev = wasAllEarnedRef.current
+    wasAllEarnedRef.current = allFiveEarned
+    // The send-off is a *moment you earn*, not a gate. It fires only on the
+    // false → true transition — the visit where the fifth shape actually lands.
+    // It must NOT fire on merely navigating to (or reloading) a figure that's
+    // already complete: otherwise, once all five are earned, every nav click
+    // re-pops the overlay and it reads as "bounced to the end-of-everything screen."
+    if (prev === null) return // first render of this mount — just record the baseline
+    if (!prev && allFiveEarned) {
+      // Fifth shape just landed on this page — let the award badge play, then reveal.
       const timer = window.setTimeout(() => setSendoffReady(true), 1000)
       return () => window.clearTimeout(timer)
     }
-    // Any other transition (true → true on re-render, or true → false after
-    // a reset): keep readiness in sync immediately.
-    wasAllEarnedRef.current = allFiveEarned
-    setSendoffReady(allFiveEarned)
+    if (prev && !allFiveEarned) setSendoffReady(false) // reset / un-earned → hide
   }, [allFiveEarned])
 
   const showSendoff = sendoffReady && !sendoffSeen
@@ -179,11 +175,11 @@ function Figure1({ auth }: { auth: AuthStatus | null }) {
       <OnboardingCard storageKey="education-labs:onboard-figure-1">
         <p className="m-0">
           <strong className="text-text-primary font-semibold">
-            Claude reads <code className="font-mono text-xs">CLAUDE.md</code> before every
-            reply.
+            <code className="font-mono text-xs">CLAUDE.md</code> is Claude&apos;s standing
+            instructions for this project.
           </strong>{' '}
-          Anything you pin here is project context for the next ask. Earn the circle when
-          Claude&apos;s reply reuses something you wrote.
+          Claude loads it when a session starts. Pin something from a reply, ask again, and earn
+          the circle when Claude reuses it.
         </p>
       </OnboardingCard>
 
@@ -191,7 +187,7 @@ function Figure1({ auth }: { auth: AuthStatus | null }) {
 
       {/* The webcam used to live here in a third column, but it pulled attention away from
           the CLAUDE.md lesson. This figure isn't about the playground — it's about the file
-          Claude reads on every reply. Cleaner with just author + chat. */}
+          Claude loads at the start of a session. Cleaner with just author + chat. */}
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_minmax(0,_1.2fr)]">
         <ClaudeMdAuthor className="min-h-0" />
         <FigureChat figure={figure} className="min-h-0" />

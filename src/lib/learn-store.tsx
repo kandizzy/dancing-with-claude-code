@@ -17,9 +17,22 @@ import { writeClaudeMd } from './ai/client'
 type LearnState = {
   earnedShapes: ShapeKind[]
   matchedAt: Partial<Record<FigureId, string>>
-  // The full CLAUDE.md as a single markdown string. The user can edit this freely;
-  // we parse out specific sections (Notes, Behavior) elsewhere when needed.
+  // The full CLAUDE.md as a single markdown string — the *live draft* the user edits.
+  // We parse out specific sections (Notes, Behavior) elsewhere when needed.
   claudeMd: string
+  // The CLAUDE.md *as Claude currently sees it* — the "pinned" copy loaded into the
+  // active context. Figure 1 inlines THIS (not the draft) into its system prompt, so an
+  // edit to `claudeMd` does not reach Claude until a reload copies draft → pinned. This is
+  // how we model the real CLI gotcha: edits don't apply until you /clear, /compact, or
+  // restart. The first edit gets a silent grace reload (see `graceUsed`); after that the
+  // user has to reload explicitly. Verified 2026-06-01: the Agent SDK actually re-reads
+  // CLAUDE.md every call, so this pinning is a deliberate teaching simulation, not the SDK's
+  // own behavior.
+  pinnedClaudeMd: string
+  // Has the one-time "first edit just works" grace been spent? The first time the draft
+  // diverges from pinned and the user asks, we reload silently (their first session reads
+  // CLAUDE.md). Every divergence after that makes them feel the staleness and reload.
+  graceUsed: boolean
   // Whether the CLAUDE.md drawer (rendered on every page) is currently expanded.
   claudeMdOpen: boolean
   // Whether the user has seen the final send-off screen. The sendoff is a
@@ -32,9 +45,14 @@ type LearnState = {
 type LearnStore = LearnState & {
   isCompleted: (id: FigureId) => boolean
   isUnlocked: (id: FigureId) => boolean
+  // True when the draft has unpinned edits Claude can't see yet (draft !== pinned).
+  isDirty: boolean
   awardShape: (id: FigureId, shape: ShapeKind, evidence: string) => void
   setClaudeMd: (text: string) => void
   appendNote: (text: string) => void
+  // Copy the live draft into the pinned copy (and mark the grace spent). Models a
+  // /clear · /compact · restart — after this, Claude sees the latest CLAUDE.md.
+  reloadContext: () => void
   setClaudeMdOpen: (open: boolean) => void
   markSendoffSeen: () => void
   reset: () => void
@@ -46,6 +64,9 @@ const INITIAL: LearnState = {
   earnedShapes: [],
   matchedAt: {},
   claudeMd: SEED_CLAUDE_MD,
+  // Draft and pinned start identical (not dirty), and no grace spent yet.
+  pinnedClaudeMd: SEED_CLAUDE_MD,
+  graceUsed: false,
   claudeMdOpen: false,
   sendoffSeen: false,
 }
@@ -88,10 +109,21 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(stored) as Partial<LearnState> & { claudeMd?: unknown }
         if (parsed) {
+          const draft = migrateClaudeMd(parsed.claudeMd)
+          // pinnedClaudeMd may be absent (pre-feature storage or a user mid-progress when
+          // this shipped). Default it to the draft so an existing user is never spuriously
+          // "dirty" on load — and treat any non-seed draft as evidence the grace was already
+          // spent, so we don't hand a returning user a fresh first-edit grace.
+          const pinned =
+            typeof parsed.pinnedClaudeMd === 'string' && parsed.pinnedClaudeMd
+              ? parsed.pinnedClaudeMd
+              : draft
           setState({
             earnedShapes: parsed.earnedShapes ?? [],
             matchedAt: parsed.matchedAt ?? {},
-            claudeMd: migrateClaudeMd(parsed.claudeMd),
+            claudeMd: draft,
+            pinnedClaudeMd: pinned,
+            graceUsed: parsed.graceUsed ?? draft.trim() !== SEED_CLAUDE_MD.trim(),
             // claudeMdOpen is session state, not progress — always start closed
             // on a fresh page load. Persisting it means opening the drawer on one
             // figure leaves it open on every subsequent page.
@@ -116,18 +148,17 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     }
   }, [state, hydrated])
 
-  // One-way sync browser CLAUDE.md → on-disk ./CLAUDE.md so the spawned `claude` (CLI mode)
-  // reads what the user authored. Debounced. Silently no-ops in API mode / production where
-  // the /api/claude-md route is unavailable.
+  // One-way sync the *pinned* CLAUDE.md → on-disk ./CLAUDE.md. Disk mirrors what Claude
+  // currently sees, NOT the live draft — so figures that read the file through the Agent SDK
+  // (settingSources, on figures 2 and 5) respect the same reload boundary as figure 1: a draft
+  // edit doesn't reach Claude until a reload pins it. pinnedClaudeMd only changes on a reload
+  // (rare), so there's no debounce. Silently no-ops in production where /api/claude-md is gone.
   useEffect(() => {
     if (!hydrated) return
-    const timer = window.setTimeout(() => {
-      writeClaudeMd(state.claudeMd).catch(() => {
-        /* api mode or production — disk write unavailable */
-      })
-    }, 250)
-    return () => window.clearTimeout(timer)
-  }, [state.claudeMd, hydrated])
+    writeClaudeMd(state.pinnedClaudeMd).catch(() => {
+      /* api mode or production — disk write unavailable */
+    })
+  }, [state.pinnedClaudeMd, hydrated])
 
   const isCompleted = useCallback(
     (id: FigureId) => state.matchedAt[id] != null,
@@ -161,6 +192,18 @@ export function LearnProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, claudeMd: appendNoteToMarkdown(prev.claudeMd, text) }))
   }, [])
 
+  // Copy draft → pinned and spend the grace. Idempotent: a no-op when already in sync and
+  // grace already spent, so calling it on a clean ask doesn't churn state. Synchronous —
+  // Figure 1 reads `pinnedClaudeMd` straight from the store (no disk round-trip), so there's
+  // nothing to await and no write race to lose.
+  const reloadContext = useCallback(() => {
+    setState((prev) =>
+      prev.pinnedClaudeMd === prev.claudeMd && prev.graceUsed
+        ? prev
+        : { ...prev, pinnedClaudeMd: prev.claudeMd, graceUsed: true },
+    )
+  }, [])
+
   const setClaudeMdOpen = useCallback((open: boolean) => {
     setState((prev) => ({ ...prev, claudeMdOpen: open }))
   }, [])
@@ -176,9 +219,11 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       ...state,
       isCompleted,
       isUnlocked,
+      isDirty: state.claudeMd !== state.pinnedClaudeMd,
       awardShape,
       setClaudeMd,
       appendNote,
+      reloadContext,
       setClaudeMdOpen,
       markSendoffSeen,
       reset,
@@ -190,6 +235,7 @@ export function LearnProvider({ children }: { children: ReactNode }) {
       awardShape,
       setClaudeMd,
       appendNote,
+      reloadContext,
       setClaudeMdOpen,
       markSendoffSeen,
       reset,

@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
 import { ask } from '@/lib/ai/client'
 import { cn } from '@/lib/utils'
-import { FilePlus, Check, Loader2, Sparkles, X } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { FilePlus, Check, Loader2, Sparkles } from 'lucide-react'
+import { Button, Modal } from '@/components/ui'
 
 const POLISH_SYSTEM = `You are helping a designer write a note in their CLAUDE.md project-context file. The user has drafted some text. Refine it into a clean note suitable for the "## Notes" section.
 
@@ -33,26 +33,6 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
   const [justAdded, setJustAdded] = useState(false)
   const [polishing, setPolishing] = useState(false)
   const [polishError, setPolishError] = useState<string | null>(null)
-
-  // Escape closes the modal.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-
-  // Lock body scroll while open.
-  useEffect(() => {
-    if (!open) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [open])
 
   if (justAdded) {
     return (
@@ -108,84 +88,58 @@ export function PromoteButton({ sourceText, className }: PromoteButtonProps) {
         Add to CLAUDE.md
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
-          onClick={() => setOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add to CLAUDE.md"
-        >
-          <div
-            className="bg-surface border-border-subtle shadow-popover relative flex max-h-[90vh] w-full max-w-2xl flex-col gap-3 rounded-lg border p-5"
-            onClick={(e) => e.stopPropagation()}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add to CLAUDE.md"
+        className="max-w-2xl max-h-[90vh]"
+      >
+        <p className="text-text-secondary m-0 text-xs leading-relaxed">
+          Trim this to the part you actually want Claude to remember. Short and specific
+          lands; long and vague gets ignored. Saving appends it under{' '}
+          <code className="font-mono text-[11px]">## Notes</code>.
+        </p>
+
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          autoFocus
+          disabled={polishing}
+          className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[50vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)] disabled:opacity-60"
+        />
+
+        {polishError && <p className="text-danger text-xs">Polish failed: {polishError}</p>}
+
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onPolish}
+            disabled={!draft.trim() || polishing}
+            className="text-text-secondary hover:text-text-primary disabled:opacity-50 inline-flex items-center gap-1.5 text-xs"
+            title="Ask Claude to rewrite this into a tighter, imperative-voice CLAUDE.md note"
           >
-            <header className="flex items-baseline justify-between gap-2">
-              <h2 className="text-text-primary font-serif text-lg">Add to CLAUDE.md</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="text-text-tertiary hover:text-text-primary"
-              >
-                <X className="size-4" />
-              </button>
-            </header>
-
-            <p className="text-text-secondary m-0 text-xs leading-relaxed">
-              Trim this to the part you actually want Claude to remember. Short and specific
-              lands; long and vague gets ignored. Saving appends it under{' '}
-              <code className="font-mono text-[11px]">## Notes</code>.
-            </p>
-
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
-              disabled={polishing}
-              className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[50vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)] disabled:opacity-60"
-            />
-
-            {polishError && (
-              <p className="text-danger text-xs">Polish failed: {polishError}</p>
+            {polishing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5" />
             )}
-
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onPolish}
-                disabled={!draft.trim() || polishing}
-                className="text-text-secondary hover:text-text-primary disabled:opacity-50 inline-flex items-center gap-1.5 text-xs"
-                title="Ask Claude to rewrite this into a tighter, imperative-voice CLAUDE.md note"
-              >
-                {polishing ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
-                {polishing ? 'Polishing…' : 'Polish for CLAUDE.md'}
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
-                >
-                  Cancel
-                </button>
-                <Button
-                  variant="primary"
-                  onClick={onSave}
-                  disabled={!draft.trim() || polishing}
-                >
-                  <FilePlus className="size-4" />
-                  Add to CLAUDE.md
-                </Button>
-              </div>
-            </div>
+            {polishing ? 'Polishing…' : 'Polish for CLAUDE.md'}
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
+            >
+              Cancel
+            </button>
+            <Button variant="primary" onClick={onSave} disabled={!draft.trim() || polishing}>
+              <FilePlus className="size-4" />
+              Add to CLAUDE.md
+            </Button>
           </div>
         </div>
-      )}
+      </Modal>
     </>
   )
 }

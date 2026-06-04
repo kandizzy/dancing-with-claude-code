@@ -6,6 +6,7 @@ import { ask } from '@/lib/ai/client'
 import { ClaudeMessage } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
+import { ThinkingState } from './ThinkingState'
 import { Button } from '@/components/ui'
 import {
   ArrowUp,
@@ -273,6 +274,9 @@ export function Figure3Workspace({ figure }: Props) {
               </div>
             </div>
 
+            {running && !runOutput && (
+              <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
+            )}
             {runOutput && (
               <div className="border-border-subtle bg-surface mt-3 rounded-md border p-3">
                 <div className="text-text-tertiary mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em]">

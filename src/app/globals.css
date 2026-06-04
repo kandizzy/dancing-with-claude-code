@@ -81,6 +81,14 @@ textarea {
   caret-color: var(--color-text-primary);
 }
 
+/* Clickable controls get a pointer cursor — browsers (and Tailwind v4's Preflight) render
+   <button> with the default arrow. This makes every button / role=button read as clickable;
+   disabled controls keep the default cursor, and links already get a pointer. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
 /* Custom scrollbar for chat area */
 .scroll-area::-webkit-scrollbar {
   width: 8px;

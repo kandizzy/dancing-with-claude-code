@@ -31,4 +31,9 @@ export const figure5: FigureDefinition = {
     'The "I asked for one thing and Claude refactored everything" story isn’t a prompt problem. It’s a workflow problem. A branch is a sandbox you can throw away. Make one, scope the ask inside it, look at the diff, then merge or discard the whole branch. The composite shape’s five strokes are the five beats: branch, scope, ask, diff, decide.',
   task:
     'Walk the five beats. Write the goal. Pick the target. Refine the directive with Claude. Run it in your terminal. Make the call — merge or throw the branch away.',
+  tips: [
+    'A branch is a sandbox you can throw away — Claude’s changes stay contained until you decide.',
+    'The loop is five beats: branch, scope, ask, diff, decide. The composite is the whole loop, not one move.',
+    'On a branch you can let Claude try something bold without risking main.',
+  ],
 }

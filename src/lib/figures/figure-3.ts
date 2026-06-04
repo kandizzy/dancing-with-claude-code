@@ -26,4 +26,9 @@ export const figure3: FigureDefinition = {
     'Chatting with Claude about a problem is a different thing than telling Claude to do work. A directive is the second one: it names the file, it names the change, and it stops there. The shape works the same wherever Claude Code runs — terminal, desktop app, here in the browser. The surface is yours to pick; the shape is the lesson.',
   task:
     'Pick a scope. Name a target. Name one specific change. Send it. Claude will sharpen it into a directive you can run anywhere — paste it into your terminal, drop it in the desktop app, or run it from here.',
+  tips: [
+    'A directive names the scope, the target, and one change — it’s not an open-ended chat.',
+    'Tight directives keep Claude from refactoring everything around the one thing you asked for.',
+    'The shape of a directive is the lesson — it works the same in the terminal, the desktop app, or here.',
+  ],
 }

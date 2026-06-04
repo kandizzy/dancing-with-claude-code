@@ -6,6 +6,7 @@ import { ask } from '@/lib/ai/client'
 import { FIGURE_4_EXTRA_SYSTEM } from '@/lib/figures/figure-4'
 import { Button } from '@/components/ui'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
+import { ThinkingState } from './ThinkingState'
 import { ArrowUp, Check, FileEdit, Loader2, X } from 'lucide-react'
 import { diffLines, type Change } from 'diff'
 import type { FigureDefinition } from '@/lib/figures/types'
@@ -209,6 +210,10 @@ export function Figure4Workspace({ figure }: Props) {
           <div className="border-border-subtle mt-4 rounded-md border p-3 text-xs">
             <p className="text-text-secondary m-0">{error}</p>
           </div>
+        )}
+
+        {streaming && !proposed && (
+          <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
         )}
       </div>
 

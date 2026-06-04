@@ -11,4 +11,9 @@ export type FigureDefinition = {
   capability: string
   intro: string
   task: string
+  /**
+   * Short "did you know" teaching lines rotated during the wait while Claude works (see
+   * WaitingTips). Optional and figure-agnostic — a figure with no tips simply shows none.
+   */
+  tips?: string[]
 }

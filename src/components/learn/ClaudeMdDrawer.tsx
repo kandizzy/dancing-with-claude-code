@@ -4,8 +4,9 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
-import { ChevronDown, FileText } from 'lucide-react'
+import { ChevronDown, FileText, RefreshCw } from 'lucide-react'
 import { MarkdownEditor } from './MarkdownEditor'
+import { ClaudeMdInfo } from './ClaudeMdInfo'
 import { getNoteEntries } from '@/lib/figures/registry'
 import type { ComponentProps } from 'react'
 
@@ -20,9 +21,14 @@ type ClaudeMdDrawerProps = ComponentProps<'div'>
  * starter-note click) doesn't leave it open when the user navigates to figure 2.
  */
 export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
-  const { claudeMd, setClaudeMd, claudeMdOpen, setClaudeMdOpen } = useLearnStore()
+  const { claudeMd, setClaudeMd, claudeMdOpen, setClaudeMdOpen, isDirty, graceUsed, reloadContext } =
+    useLearnStore()
   const noteCount = getNoteEntries(claudeMd).length
   const pathname = usePathname()
+  // After the first-edit grace (always spent by the time figures 2–5 are reachable), a draft
+  // edit that hasn't been pinned shows a quiet reload chip — the calm, repeated reinforcement
+  // of figure 1's loud lesson, without re-teaching it.
+  const showReloadChip = isDirty && graceUsed
 
   // Close the drawer on EVERY mount and every path change. The previous version
   // guarded on `lastPathRef.current !== null` to skip the initial mount, but figure 1
@@ -38,28 +44,44 @@ export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
 
   return (
     <div className={cn('relative z-30', className)} {...props}>
-      <button
-        type="button"
-        onClick={() => setClaudeMdOpen(!claudeMdOpen)}
-        aria-expanded={claudeMdOpen}
-        className="border-border-subtle bg-surface hover:bg-state-hover flex w-full items-center gap-3 rounded-lg border px-4 py-2 text-xs"
-      >
-        <FileText className="text-text-secondary size-3.5" />
-        <span className="text-text-secondary font-mono">CLAUDE.md</span>
-        <span className="text-text-tertiary">·</span>
-        <span className="text-text-tertiary">
-          {noteCount} note{noteCount === 1 ? '' : 's'} so far
-        </span>
-        <span className="text-text-tertiary ml-auto hidden italic sm:inline">
-          Claude reads this on every reply. Add to it from any figure.
-        </span>
-        <ChevronDown
-          className={cn(
-            'text-text-tertiary size-4 transition-transform',
-            claudeMdOpen && 'rotate-180',
-          )}
-        />
-      </button>
+      <div className="border-border-subtle bg-surface flex w-full items-center gap-3 rounded-lg border px-4 py-2 text-xs">
+        <button
+          type="button"
+          onClick={() => setClaudeMdOpen(!claudeMdOpen)}
+          aria-expanded={claudeMdOpen}
+          aria-label={claudeMdOpen ? 'Collapse CLAUDE.md' : 'Expand CLAUDE.md'}
+          className="hover:text-text-primary flex flex-1 items-center gap-3 text-left"
+        >
+          <FileText className="text-text-secondary size-3.5" />
+          <span className="text-text-secondary font-mono">CLAUDE.md</span>
+          <span className="text-text-tertiary">·</span>
+          <span className="text-text-tertiary">
+            {noteCount} note{noteCount === 1 ? '' : 's'} so far
+          </span>
+          <ChevronDown
+            className={cn(
+              'text-text-tertiary ml-auto size-4 transition-transform',
+              claudeMdOpen && 'rotate-180',
+            )}
+          />
+        </button>
+        {/* Quiet "your edits aren't applied yet" reinforcement. A sibling of the toggle (not
+            nested), so clicking it pins the draft without expanding/collapsing the drawer. */}
+        {showReloadChip && (
+          <button
+            type="button"
+            onClick={reloadContext}
+            title="Your CLAUDE.md edits aren't in Claude's context yet — reload to apply them"
+            className="border-[color:var(--color-accent-strong)]/30 bg-[color:var(--color-accent)]/5 text-[color:var(--color-accent-strong)] hover:bg-[color:var(--color-accent)]/10 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-medium"
+          >
+            <RefreshCw className="size-3" />
+            Reload to apply
+          </button>
+        )}
+        {/* Sibling of the toggle, not nested — avoids button-in-button and keeps opening the
+            "how it loads" popover from expanding/collapsing the drawer. */}
+        <ClaudeMdInfo className="shrink-0" />
+      </div>
 
       {claudeMdOpen && (
         <div className="border-border-subtle bg-surface shadow-popover absolute inset-x-0 top-full z-30 mt-1 max-h-[80vh] overflow-y-auto rounded-lg border p-4">

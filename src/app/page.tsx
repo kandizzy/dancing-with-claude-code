@@ -220,8 +220,12 @@ function FigureCell({
   const edgeId = `landing-edge-${figureId}`
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="border-border-subtle relative flex aspect-square w-full items-center justify-center rounded-sm border border-dashed">
+    <Link
+      href={`/learn/${figureId}`}
+      aria-label={`${title} — figure ${figureId}`}
+      className="group flex flex-col items-center gap-3"
+    >
+      <div className="border-border-subtle group-hover:border-text-tertiary relative flex aspect-square w-full items-center justify-center rounded-sm border border-dashed transition-colors">
         <span className="text-text-tertiary absolute left-3 top-2 font-mono text-[10px] uppercase tracking-widest">
           fig. {figureId}
         </span>
@@ -325,9 +329,9 @@ function FigureCell({
           </g>
         </svg>
       </div>
-      <p className="text-text-secondary text-center font-serif text-[13px] italic leading-snug">
+      <p className="text-text-secondary group-hover:text-text-primary text-center font-serif text-[13px] italic leading-snug transition-colors">
         {title}
       </p>
-    </div>
+    </Link>
   )
 }

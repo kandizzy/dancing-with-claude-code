@@ -27,4 +27,9 @@ export const figure4: FigureDefinition = {
     "In real Claude Code, every edit shows up as a diff before it commits. Three of five students we surveyed said they just hit y. The muscle we’re building here is the pause — read the change, then decide. We’ll exercise it on the file you’ve been authoring: your CLAUDE.md.",
   task:
     "Describe a change you’d like Claude to make to your CLAUDE.md. You’ll see the proposed new file as a line-by-line diff. Accept it or discard it — either choice earns the square. The shape is for looking, not for agreeing.",
+  tips: [
+    'Real Claude Code pauses before every edit, command, and write — and shows you the diff first.',
+    'Reading the diff is your last chance to catch a wrong assumption before it lands.',
+    'Auto-accepting skips the pause — and the muscle this figure is building.',
+  ],
 }

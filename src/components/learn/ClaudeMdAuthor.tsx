@@ -4,6 +4,7 @@ import { useLearnStore } from '@/lib/learn-store'
 import { cn } from '@/lib/utils'
 import { FileText } from 'lucide-react'
 import { MarkdownEditor } from './MarkdownEditor'
+import { ClaudeMdInfo } from './ClaudeMdInfo'
 import type { ComponentProps } from 'react'
 
 type ClaudeMdAuthorProps = ComponentProps<'div'> & {
@@ -29,9 +30,7 @@ export function ClaudeMdAuthor({ className, rows = 16, ...props }: ClaudeMdAutho
       <div className="border-border-soft text-text-secondary flex items-center gap-2 border-b px-4 py-2 text-xs">
         <FileText className="size-3.5" />
         <span className="font-mono">CLAUDE.md</span>
-        <span className="text-text-tertiary ml-auto italic">
-          Claude reads this on every reply.
-        </span>
+        <ClaudeMdInfo className="ml-auto" />
       </div>
 
       <div className="scroll-area min-h-0 flex-1 overflow-y-auto p-4">

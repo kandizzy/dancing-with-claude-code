@@ -108,6 +108,42 @@ export async function ask(input: ClientAiInput): Promise<AiCallResult> {
   return body;
 }
 
+const NOTE_JUDGE_SYSTEM = `You grade whether a Claude reply used a note the user wrote in their CLAUDE.md "## Notes". You will get a numbered list of NOTES and a REPLY. Respond in this exact format:
+- First line: the number of the single note the reply most clearly drew on, reflected, or applied — paraphrasing the note or applying its idea both count; a generic mention that doesn't actually reflect the note does NOT. Use 0 if the reply draws on no note.
+- If the number is not 0, a second line: copy, verbatim, the exact sentence or short phrase FROM THE REPLY that best shows that reuse — no quotation marks, no commentary.
+Output only those one or two lines, nothing else.`;
+
+export type NoteVerdict = { note: string; span: string | null };
+
+/**
+ * Figure 1's gate: ask Claude which of the user's CLAUDE.md notes (if any) a reply actually
+ * drew on. Returns the matched note text PLUS a verbatim span from the reply that shows the
+ * reuse (or null). Semantic — it catches paraphrase the old consecutive-word matcher missed,
+ * and the span lets the highlight track the *applied* text even when Claude didn't quote the
+ * note word-for-word. The caller runs it only when notes exist and passes the notes Claude
+ * actually saw (the pinned snapshot). Single-shot, no session. Throws like `ask()` on
+ * transport/overload errors — the caller treats that as no match (the reply is already shown).
+ */
+export async function judgeNoteReuse(
+  notes: string[],
+  reply: string,
+): Promise<NoteVerdict | null> {
+  const list = notes.filter((n) => n.trim());
+  if (list.length === 0) return null;
+  const numbered = list.map((n, i) => `${i + 1}. ${n}`).join("\n");
+  const result = await ask({
+    systemPrompt: NOTE_JUDGE_SYSTEM,
+    userPrompt: `NOTES:\n${numbered}\n\nREPLY:\n${reply}`,
+  });
+  const lines = result.text.trim().split("\n");
+  const m = lines[0]?.match(/\d+/);
+  if (!m) return null;
+  const idx = Number.parseInt(m[0], 10);
+  if (!Number.isFinite(idx) || idx < 1 || idx > list.length) return null;
+  const span = lines.slice(1).join(" ").trim() || null;
+  return { note: list[idx - 1], span };
+}
+
 export type SlashCommand = {
   name: string;
   description: string;

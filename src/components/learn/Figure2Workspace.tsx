@@ -9,8 +9,9 @@ import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { Button } from '@/components/ui'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
+import { ThinkingState } from './ThinkingState'
 import { cn } from '@/lib/utils'
-import { ArrowUp, ChevronDown, ChevronRight, Loader2, Square, Terminal } from 'lucide-react'
+import { ArrowUp, ChevronDown, ChevronRight, Square, Terminal } from 'lucide-react'
 import type { FigureDefinition } from '@/lib/figures/types'
 
 type Props = { figure: FigureDefinition }
@@ -304,14 +305,7 @@ export function Figure2Workspace({ figure }: Props) {
             </div>
           ),
         )}
-        {streaming && (
-          <ClaudeMessage>
-            <div className="text-text-tertiary inline-flex items-center gap-2 text-xs">
-              <Loader2 className="size-3 animate-spin" />
-              claude is working…
-            </div>
-          </ClaudeMessage>
-        )}
+        {streaming && <ThinkingState kind={figure.shape} tips={figure.tips} />}
       </div>
 
       <ShapeAwardBanner

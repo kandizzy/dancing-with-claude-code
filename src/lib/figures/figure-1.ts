@@ -33,4 +33,16 @@ export const figure1: FigureDefinition = {
     'Every Claude Code session reads a file called CLAUDE.md before it answers anything. It’s your project’s standing instructions. Most users never open it — they just chat, and Claude guesses. Here, you’ll write into it as you go, and watch the next reply pick up what you wrote.',
   task:
     'Ask Claude something about this project. When the answer surfaces something worth keeping — a preference, a constraint, a rule — pin it to CLAUDE.md. Ask again. The reply will change.',
+  // Rotated during the wait (WaitingTips) so the think-time teaches. Plain "did you know" lines
+  // about what CLAUDE.md is, what it can do, and the reload gotcha — consistent with the
+  // ClaudeMdInfo popover and the figure copy.
+  tips: [
+    'CLAUDE.md is your project’s standing instructions — Claude loads it at the start of every session.',
+    'Anything under ## Notes becomes context Claude carries into every reply that session.',
+    'It’s shared context — everyone who runs Claude Code in this project gets the same instructions.',
+    'CLAUDE.md isn’t the system prompt — that’s Anthropic’s. CLAUDE.md is your per-project add-on that loads into it.',
+    'Gotcha: edits don’t apply mid-session. /clear, /compact, or restart to reload the file.',
+    'Short and specific wins — “smooth with EMA at 0.3” beats “make it less jittery.”',
+    'Claude reads CLAUDE.md before your question — it shapes the answer, it doesn’t just correct it after.',
+  ],
 }

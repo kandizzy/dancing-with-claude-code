@@ -5,7 +5,8 @@ import { useLearnStore } from '@/lib/learn-store'
 import { ask, gitAction, gitStatus, readDiff, isOverloadedError, isRateLimitError, type GitStatus } from '@/lib/ai/client'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { OverloadNotice } from './OverloadNotice'
-import { Button } from '@/components/ui'
+import { ThinkingState } from './ThinkingState'
+import { Button, Modal } from '@/components/ui'
 import {
   ArrowRight,
   Check,
@@ -17,7 +18,6 @@ import {
   Target,
   Terminal,
   Trash2,
-  X,
 } from 'lucide-react'
 import { FIGURE_5_EXTRA_SYSTEM } from '@/lib/figures/figure-5'
 import type { FigureDefinition } from '@/lib/figures/types'
@@ -552,6 +552,9 @@ export function Figure5Workspace({ figure }: Props) {
                       </p>
                     </div>
                   )}
+                  {runningClaude && (
+                    <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
+                  )}
                   {/* Transient error notice for the run-claude-p call. */}
                   {runTransient && (
                     <div className="mt-2">
@@ -688,65 +691,45 @@ export function Figure5Workspace({ figure }: Props) {
       />
 
       {/* Edit-directive modal. */}
-      {editOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
-          onClick={() => setEditOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Edit the directive"
-        >
-          <div
-            className="bg-surface border-border-subtle shadow-popover relative flex max-h-[90vh] w-full max-w-2xl flex-col gap-3 rounded-lg border p-5"
-            onClick={(e) => e.stopPropagation()}
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit the directive"
+        className="max-w-2xl max-h-[90vh]"
+      >
+        <p className="text-text-secondary m-0 text-xs leading-relaxed">
+          Tighten the directive before you run it. Name the target file once, describe
+          one change, forbid drift. Shorter is usually better.
+        </p>
+
+        <textarea
+          value={editDraft}
+          onChange={(e) => setEditDraft(e.target.value)}
+          autoFocus
+          className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[40vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)]"
+        />
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setEditOpen(false)}
+            className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
           >
-            <header className="flex items-baseline justify-between gap-2">
-              <h2 className="text-text-primary font-serif text-lg">Edit the directive</h2>
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                aria-label="Close"
-                className="text-text-tertiary hover:text-text-primary"
-              >
-                <X className="size-4" />
-              </button>
-            </header>
-
-            <p className="text-text-secondary m-0 text-xs leading-relaxed">
-              Tighten the directive before you run it. Name the target file once, describe
-              one change, forbid drift. Shorter is usually better.
-            </p>
-
-            <textarea
-              value={editDraft}
-              onChange={(e) => setEditDraft(e.target.value)}
-              autoFocus
-              className="text-text-primary font-text border-border-subtle bg-page placeholder:text-text-tertiary min-h-[40vh] w-full resize-y rounded-md border p-3 text-sm leading-snug outline-none focus:border-[color:var(--color-accent-strong)]"
-            />
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="text-text-tertiary hover:text-text-primary px-3 py-1.5 text-sm"
-              >
-                Cancel
-              </button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setDirective(editDraft)
-                  setEditOpen(false)
-                }}
-                disabled={!editDraft.trim()}
-              >
-                <Check className="size-4" />
-                Save changes
-              </Button>
-            </div>
-          </div>
+            Cancel
+          </button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setDirective(editDraft)
+              setEditOpen(false)
+            }}
+            disabled={!editDraft.trim()}
+          >
+            <Check className="size-4" />
+            Save changes
+          </Button>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }
