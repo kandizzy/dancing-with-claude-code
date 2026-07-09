@@ -9,14 +9,15 @@ import type { ShapeKind } from '@/lib/figures/types'
  * The shared "Claude is working" wait treatment: the figure's own shape sketching itself in,
  * a caption, and rotating teaching tips. One component so every figure's wait looks and teaches
  * the same way. `noteInPlay` is Figure 1's "note takes the stage" beat; other figures leave it
- * off. `size` is smaller in the form-shaped figures (2–5) than in the chat (1).
+ * off. Sizing rule: default 96 for the form-shaped figures; chat transcripts (1, 2) opt into
+ * 140 explicitly — they have the vertical room.
  */
 export function ThinkingState({
   kind,
   tips,
   noteInPlay = false,
   label = 'claude is working…',
-  size = 140,
+  size = 96,
   className,
 }: {
   kind: ShapeKind

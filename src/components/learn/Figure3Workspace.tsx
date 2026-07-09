@@ -275,7 +275,7 @@ export function Figure3Workspace({ figure }: Props) {
             </div>
 
             {running && !runOutput && (
-              <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
+              <ThinkingState kind={figure.shape} tips={figure.tips} />
             )}
             {runOutput && (
               <div className="border-border-subtle bg-surface mt-3 rounded-md border p-3">

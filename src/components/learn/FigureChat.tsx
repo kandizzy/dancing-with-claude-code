@@ -525,7 +525,7 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
         )}
 
         {streaming && (
-          <ThinkingState kind={figure.shape} tips={figure.tips} noteInPlay={notesLoading} />
+          <ThinkingState kind={figure.shape} tips={figure.tips} noteInPlay={notesLoading} size={140} />
         )}
 
         {judging && (

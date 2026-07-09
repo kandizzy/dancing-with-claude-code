@@ -125,7 +125,12 @@ export function FigureThinking({ kind, noteInPlay = false, size = 140, className
         {kind === 'triangle' && <polygon points="24,6 44,42 4,42" {...sketch} />}
         {kind === 'arc' && <path d="M 6 36 A 18 18 0 0 1 42 36" {...sketch} />}
         {kind === 'square' && <rect x={8} y={8} width={32} height={32} {...sketch} />}
-        {kind === 'composite' && <circle cx={16} cy={16} r={10} {...sketch} />}
+        {/* Composite mirrors Shape.tsx's circle+square as ONE compound path so the shared
+            pathLength dash draw-on and getPointAtLength dot keep working (they need a single
+            SVGGeometryElement). The subshapes sketch on in sequence — circle, then square. */}
+        {kind === 'composite' && (
+          <path d="M 26 16 A 10 10 0 1 1 6 16 A 10 10 0 1 1 26 16 M 22 22 h 20 v 20 h -20 Z" {...sketch} />
+        )}
 
         {noteInPlay && (
           <circle ref={dotRef} r={2.2} fill={stroke} style={{ opacity: 0 }} aria-hidden />

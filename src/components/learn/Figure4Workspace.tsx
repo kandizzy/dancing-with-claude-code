@@ -213,7 +213,7 @@ export function Figure4Workspace({ figure }: Props) {
         )}
 
         {streaming && !proposed && (
-          <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
+          <ThinkingState kind={figure.shape} tips={figure.tips} />
         )}
       </div>
 

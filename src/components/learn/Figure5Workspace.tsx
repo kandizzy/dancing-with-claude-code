@@ -473,18 +473,27 @@ export function Figure5Workspace({ figure }: Props) {
             </div>
 
             {!directive && (
-              <Button
-                onClick={refineDirective}
-                disabled={!goal.trim() || !scope.trim() || refining}
-                variant="primary"
-              >
-                {refining ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="size-4" />
+              <>
+                <Button
+                  onClick={refineDirective}
+                  disabled={!goal.trim() || !scope.trim() || refining}
+                  variant="primary"
+                >
+                  {refining ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="size-4" />
+                  )}
+                  Refine with Claude
+                </Button>
+                {refining && (
+                  <ThinkingState
+                    kind={figure.shape}
+                    tips={figure.tips}
+                    label="refining your directive…"
+                  />
                 )}
-                {refining ? 'Refining…' : 'Refine with Claude'}
-              </Button>
+              </>
             )}
 
             {/* Transient error notice for the refine call (529 or 429).
@@ -540,7 +549,7 @@ export function Figure5Workspace({ figure }: Props) {
                       ) : (
                         <Terminal className="size-4" />
                       )}
-                      {runningClaude ? 'Claude is editing files…' : 'Run claude -p'}
+                      Run claude -p
                     </Button>
                   ) : (
                     <div className="border-border-soft bg-surface mt-2 rounded-md border p-3 text-xs">
@@ -552,8 +561,14 @@ export function Figure5Workspace({ figure }: Props) {
                       </p>
                     </div>
                   )}
+                  {/* One wait rule: the button spinner acknowledges the click; ThinkingState
+                      alone narrates the wait. */}
                   {runningClaude && (
-                    <ThinkingState kind={figure.shape} tips={figure.tips} size={96} />
+                    <ThinkingState
+                      kind={figure.shape}
+                      tips={figure.tips}
+                      label="claude is editing files…"
+                    />
                   )}
                   {/* Transient error notice for the run-claude-p call. */}
                   {runTransient && (

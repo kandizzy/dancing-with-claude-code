@@ -305,7 +305,8 @@ export function Figure2Workspace({ figure }: Props) {
             </div>
           ),
         )}
-        {streaming && <ThinkingState kind={figure.shape} tips={figure.tips} />}
+        {/* Chat transcripts get the large sketch — they have the vertical room. */}
+        {streaming && <ThinkingState kind={figure.shape} tips={figure.tips} size={140} />}
       </div>
 
       <ShapeAwardBanner
