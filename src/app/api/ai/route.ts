@@ -62,6 +62,9 @@ export async function POST(req: Request) {
     // The Agent SDK reads CLAUDE.md and .claude/commands/ from cwd, which is the prototype
     // directory when started via `npm run dev`.
     cwd: process.cwd(),
+    // Fires when the client disconnects (Stop button, closed tab) — cancels the
+    // SDK turn instead of letting it run (and bill) to completion.
+    signal: req.signal,
   }
 
   try {

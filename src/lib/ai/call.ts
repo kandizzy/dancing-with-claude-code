@@ -24,6 +24,10 @@ export type AiCallInput = {
   // Whether to load CLAUDE.md and .claude/commands/ from cwd. See
   // ClaudeCliOptions for the cost tradeoff. Default false.
   loadProjectContext?: boolean
+  // Cancels the SDK turn mid-flight. The route passes the request's own
+  // signal here so a client disconnect (Stop button, closed tab) stops the
+  // underlying query instead of letting it run to completion.
+  signal?: AbortSignal
 }
 
 /**
@@ -80,6 +84,7 @@ export async function callAi(input: AiCallInput): Promise<AiCallResult> {
     allowedTools: input.allowedTools,
     useClaudeCodePreset: input.useClaudeCodePreset,
     loadProjectContext: input.loadProjectContext,
+    signal: input.signal,
   })
   return {
     text: unwrapJsonEnvelope(result.text),

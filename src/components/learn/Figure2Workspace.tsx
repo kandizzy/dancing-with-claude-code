@@ -206,6 +206,8 @@ export function Figure2Workspace({ figure }: Props) {
     setPickedCommand(null)
     setPreviewOpen(false)
     setStreaming(true)
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const result = await ask({
@@ -216,6 +218,7 @@ export function Figure2Workspace({ figure }: Props) {
         // commands work, and CLAUDE.md so the commands can reference notes.
         // No agent preset — this is text Q&A, not file editing.
         loadProjectContext: true,
+        signal: controller.signal,
       })
       setMessages((m) => [
         ...m,
@@ -233,12 +236,22 @@ export function Figure2Workspace({ figure }: Props) {
         awardShape(figure.id, figure.shape, `invoked /${wasViaSlash}`)
       }
     } catch (err) {
-      const errMsg = (err as Error)?.message ?? 'Request failed'
-      setMessages((m) => [
-        ...m,
-        { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errMsg}` },
-      ])
+      // A stop is the user's own act, not a failure — note it quietly instead
+      // of rendering the red error message.
+      if ((err as Error)?.name === 'AbortError') {
+        setMessages((m) => [
+          ...m,
+          { id: crypto.randomUUID(), role: 'assistant', content: '_Stopped._' },
+        ])
+      } else {
+        const errMsg = (err as Error)?.message ?? 'Request failed'
+        setMessages((m) => [
+          ...m,
+          { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errMsg}` },
+        ])
+      }
     } finally {
+      abortRef.current = null
       setStreaming(false)
     }
   }, [input, streaming, pickedCommand, sessionId, figure, awardShape, isCompleted])
@@ -378,7 +391,12 @@ export function Figure2Workspace({ figure }: Props) {
             <span />
           )}
           {streaming ? (
-            <Button size="icon" variant="primary" onClick={() => abortRef.current?.abort()}>
+            <Button
+              size="icon"
+              variant="primary"
+              onClick={() => abortRef.current?.abort()}
+              aria-label="Stop"
+            >
               <Square className="size-3.5 fill-current" />
             </Button>
           ) : (

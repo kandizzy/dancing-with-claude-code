@@ -21,6 +21,10 @@ export type ClientAiInput = {
   // false. Figures 1 and 2 pass true (the lesson is the file or the slash
   // commands).
   loadProjectContext?: boolean;
+  // Abort the request. The route forwards the disconnect to the Agent SDK, so
+  // stopping actually cancels the server-side turn instead of letting it run
+  // (and bill) to completion.
+  signal?: AbortSignal;
 };
 
 /**
@@ -85,6 +89,7 @@ export async function ask(input: ClientAiInput): Promise<AiCallResult> {
       useClaudeCodePreset: input.useClaudeCodePreset,
       loadProjectContext: input.loadProjectContext,
     }),
+    signal: input.signal,
   });
   const body = (await res.json()) as AiCallResult | { error: string };
   if (!res.ok || "error" in body) {

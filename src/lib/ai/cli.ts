@@ -48,6 +48,12 @@ export type ClaudeCliOptions = {
    * Default false.
    */
   loadProjectContext?: boolean
+  /**
+   * Cancels the in-flight SDK turn. Bridged to the SDK's own AbortController
+   * ("when aborted, the query will stop"). Used by the /api/ai route to
+   * propagate a client disconnect.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -72,6 +78,12 @@ export async function claudeCli(
 ): Promise<ClaudeCliResult> {
   const usePreset = options.useClaudeCodePreset === true
   const loadProject = options.loadProjectContext === true
+  // Bridge the caller's AbortSignal to the SDK's AbortController-shaped option.
+  const abortController = new AbortController()
+  if (options.signal) {
+    if (options.signal.aborted) abortController.abort()
+    else options.signal.addEventListener('abort', () => abortController.abort(), { once: true })
+  }
   try {
     const iterator = query({
       prompt: userPrompt,
@@ -94,6 +106,7 @@ export async function claudeCli(
         // pay tokens for nothing if they enable it.
         ...(loadProject ? { settingSources: ['project' as const] } : {}),
         cwd: options.cwd ?? process.cwd(),
+        abortController,
         ...(options.resumeSessionId ? { resume: options.resumeSessionId } : {}),
         ...(options.allowedTools && options.allowedTools.length > 0
           ? { allowedTools: [...options.allowedTools] }
