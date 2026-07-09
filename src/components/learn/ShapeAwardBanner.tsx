@@ -1,22 +1,66 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useLearnStore } from '@/lib/learn-store'
-import type { FigureId } from '@/lib/figures/types'
-import { Check } from 'lucide-react'
+import { Shape } from './Shape'
+import { easeOutCubic, useReducedMotion } from '@/lib/anim'
+import type { FigureId, ShapeKind } from '@/lib/figures/types'
 
 type Props = {
   figureId: FigureId
+  kind: ShapeKind
   shapeLabel: string
   copy: string
 }
 
-export function ShapeAwardBanner({ figureId, shapeLabel, copy }: Props) {
+const ENTRANCE_MS = 450
+
+/**
+ * The one earned-moment treatment, shared by all five figures. Persist-forever
+ * (earned is earned), but the *earning* visit celebrates: if completion flips
+ * false→true while mounted, the banner enters with a one-shot rise and the
+ * shape dances continuously; on a revisit it sits quiet and only dances on hover.
+ */
+export function ShapeAwardBanner({ figureId, kind, shapeLabel, copy }: Props) {
   const { isCompleted } = useLearnStore()
-  if (!isCompleted(figureId)) return null
+  const completed = isCompleted(figureId)
+  // Captured once at mount: was this figure already earned when the page opened?
+  const wasEarnedAtMount = useRef(completed)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const reduced = useReducedMotion()
+  const justEarned = completed && !wasEarnedAtMount.current
+
+  // One-shot entrance (not useRafLoop — that runs for the component's lifetime,
+  // and this banner persists long after the entrance is over).
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el || !justEarned || reduced) return
+    let raf = 0
+    const start = performance.now()
+    const tick = () => {
+      const t = easeOutCubic(Math.min((performance.now() - start) / ENTRANCE_MS, 1))
+      el.style.opacity = String(t)
+      el.style.transform = `translateY(${((1 - t) * 8).toFixed(2)}px)`
+      if (t < 1) {
+        raf = requestAnimationFrame(tick)
+      } else {
+        el.style.opacity = ''
+        el.style.transform = ''
+      }
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [justEarned, reduced])
+
+  if (!completed) return null
   return (
-    <div className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm">
+    <div
+      ref={cardRef}
+      style={justEarned && !reduced ? { opacity: 0 } : undefined}
+      className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm"
+    >
       <div className="text-text-primary mb-1 flex items-center gap-2 font-semibold">
-        <Check className="size-4" />
+        <Shape kind={kind} size={24} earned animate={justEarned ? 'always' : 'hover'} />
         {shapeLabel} earned
       </div>
       <p className="text-text-secondary m-0">{copy}</p>

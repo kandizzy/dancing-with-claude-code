@@ -14,7 +14,7 @@ import { ArrowUp, FilePlus, HelpCircle, Loader2, RefreshCw, Trash2 } from 'lucid
 import { PromoteButton } from './PromoteButton'
 import { OverloadNotice } from './OverloadNotice'
 import { ThinkingState } from './ThinkingState'
-import { Shape } from './Shape'
+import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { Button } from '@/components/ui'
 
 type FigureChatProps = {
@@ -414,7 +414,6 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
   }, [setSession, messagesStorageKey])
 
   const lastAssistant = messages.filter((m) => m.role === 'assistant').slice(-1)[0]
-  const showSuccess = !judging && completed && lastAssistant?.matchedText
   const isEmpty = messages.length === 0
   // The reload nudge wins over the generic follow-up nudge: when an ask ran stale, the reason
   // the note didn't land is staleness, not a too-general note, so don't tell them to reword.
@@ -545,19 +544,12 @@ export function FigureChat({ figure, onMatchedText, className }: FigureChatProps
         )}
       </div>
 
-      {showSuccess && (
-        <div className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm">
-          <div className="text-text-primary mb-1 flex items-center gap-2 font-semibold">
-            <Shape kind={figure.shape} size={24} earned animate="always" />
-            Circle earned
-          </div>
-          <p className="text-text-secondary m-0">
-            Claude just reused something <em>you</em> wrote. That&apos;s the whole trick — your
-            CLAUDE.md is project context Claude loaded for this session, not just chatter from
-            earlier in this conversation.
-          </p>
-        </div>
-      )}
+      <ShapeAwardBanner
+        figureId={figure.id}
+        kind={figure.shape}
+        shapeLabel="Circle"
+        copy="Claude just reused something you wrote. That's the whole trick — your CLAUDE.md is project context Claude loaded for this session, not just chatter from earlier in this conversation."
+      />
 
       {/* The "let them feel it" moment. The reply just ran without their latest edit; name the
          real Claude Code gotcha and offer the reload that applies it. */}

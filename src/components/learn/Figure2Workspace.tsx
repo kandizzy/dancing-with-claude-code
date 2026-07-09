@@ -311,6 +311,7 @@ export function Figure2Workspace({ figure }: Props) {
 
       <ShapeAwardBanner
         figureId={figure.id}
+        kind={figure.shape}
         shapeLabel="Triangle"
         copy="Slash commands are just markdown files in .claude/commands/. The filename becomes the slash (research-dev.md → /research-dev). The body of the file becomes the prompt. Drop a new .md in that folder and it shows up here on reload — you can write your own."
       />

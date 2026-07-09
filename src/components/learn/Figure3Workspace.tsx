@@ -300,6 +300,7 @@ export function Figure3Workspace({ figure }: Props) {
 
       <ShapeAwardBanner
         figureId={figure.id}
+        kind={figure.shape}
         shapeLabel="Arc"
         copy="You wrote a directive — scope, target, action — not a chat. That's the move, and it works the same wherever Claude Code runs. The terminal is one place. The desktop app is another. This tab is another. The shape is the lesson; pick the surface that fits your workflow."
       />

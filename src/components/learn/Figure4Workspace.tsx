@@ -219,6 +219,7 @@ export function Figure4Workspace({ figure }: Props) {
 
       <ShapeAwardBanner
         figureId={figure.id}
+        kind={figure.shape}
         shapeLabel="Square"
         copy="You read the diff before it landed. Every file edit, every shell command, every Write — real Claude Code pauses on all of them and asks. Auto-accept skips the pause; it also skips your last chance to catch a wrong assumption. The muscle is to stop and look."
       />

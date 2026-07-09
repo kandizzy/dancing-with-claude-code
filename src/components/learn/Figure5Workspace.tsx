@@ -701,6 +701,7 @@ export function Figure5Workspace({ figure }: Props) {
 
       <ShapeAwardBanner
         figureId={figure.id}
+        kind={figure.shape}
         shapeLabel="Composite"
         copy="You walked the five beats: branch, scope, ask, diff, decide. The composite is the whole loop, not one move — it's how you keep Claude from refactoring everything under you."
       />
