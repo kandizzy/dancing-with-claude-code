@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono, Caveat } from 'next/font/google'
 import { LearnProvider } from '@/lib/learn-store'
+import { AskSessionProvider } from '@/lib/ask-session-store'
 import './globals.css'
 
 const geistSans = Geist({
@@ -36,7 +37,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} font-sans antialiased`}
       >
         <LearnProvider>
-          <div className="h-dvh">{children}</div>
+          {/* Inside LearnProvider: figure 1's completion chain needs awardShape + pin state.
+              At the root (not per-page) so in-flight asks survive route changes. */}
+          <AskSessionProvider>
+            <div className="h-dvh">{children}</div>
+          </AskSessionProvider>
         </LearnProvider>
       </body>
     </html>

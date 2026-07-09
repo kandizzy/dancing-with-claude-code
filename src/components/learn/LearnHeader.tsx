@@ -2,15 +2,22 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { ShapeTray } from './ShapeTray'
 import { figureLabel, getFigure } from '@/lib/figures/registry'
+import { useAskSession } from '@/lib/ask-session-store'
 import type { FigureId } from '@/lib/figures/types'
 
 export function LearnHeader() {
   const pathname = usePathname() ?? ''
   const sectionTitle = sectionTitleFor(pathname)
   const isFigure = /^\/learn\/\d+/.test(pathname)
+  const { pending } = useAskSession()
+  const figureMatch = pathname.match(/^\/learn\/(\d+)/)
+  const currentFigureId = figureMatch ? Number(figureMatch[1]) : null
+  // An ask is running on a figure the user isn't looking at — say so, and link back.
+  // (Asks survive navigation now; this is how the user finds their way back to the reply.)
+  const workingElsewhere = pending != null && pending.figureId !== currentFigureId
 
   // Navigation grammar:
   //   The TITLE is the global home — always returns to the landing (/).
@@ -54,7 +61,18 @@ export function LearnHeader() {
           </>
         )}
       </div>
-      <ShapeTray />
+      <div className="flex items-center gap-3">
+        {workingElsewhere && pending && (
+          <Link
+            href={`/learn/${pending.figureId}`}
+            className="border-border-subtle bg-surface text-text-secondary hover:text-text-primary inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
+          >
+            <Loader2 className="size-3 animate-spin" />
+            Claude is working on figure {pending.figureId}
+          </Link>
+        )}
+        <ShapeTray />
+      </div>
     </header>
   )
 }

@@ -2,47 +2,44 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useLearnStore } from '@/lib/learn-store'
-import { ask, listCommands, type SlashCommand } from '@/lib/ai/client'
+import { listCommands, type SlashCommand } from '@/lib/ai/client'
 import { ClaudeMessage, ClaudeParagraph } from '@/components/chat/ClaudeMessage'
 import { ClaudeMarkdown } from '@/components/chat/ClaudeMarkdown'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { Button } from '@/components/ui'
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { ThinkingState } from './ThinkingState'
+import { useAskSession } from '@/lib/ask-session-store'
 import { cn } from '@/lib/utils'
-import { ArrowUp, ChevronDown, ChevronRight, Square, Terminal } from 'lucide-react'
+import { ArrowUp, ChevronDown, ChevronRight, RefreshCw, Square, Terminal } from 'lucide-react'
 import type { FigureDefinition } from '@/lib/figures/types'
 
 type Props = { figure: FigureDefinition }
-type Rendered = {
-  id: string
-  role: 'user' | 'assistant'
-  // The string we show in the UI (e.g. `/explain-figure 2`). For slash-command turns,
-  // this is the user-facing token, not the expanded prompt body.
-  content: string
-  viaSlash?: string
+
+// Expand a slash invocation against a command's body: `$ARGUMENTS` is replaced with
+// whatever followed the slash token; a command file without the placeholder gets the
+// args appended as a Task: line so the user's intent isn't silently dropped. Mirrors
+// real Claude Code's slash-command semantics.
+function expandCommand(cmd: SlashCommand, args: string): string {
+  if (cmd.body.includes('$ARGUMENTS')) return cmd.body.replaceAll('$ARGUMENTS', args)
+  return args ? `${cmd.body}\n\nTask: ${args}` : cmd.body
 }
 
-const F2_SYSTEM = `You are Claude, the co-pilot in a browser-based webcam project the user has cloned locally. The user just sent a message. If it was a slash command, honor whatever the command body asks for. If it was a follow-up to your previous message in this conversation, respond in light of what came before — including answering single-word or single-number replies (e.g. "2" answering "which figure?"). Keep replies short (1–3 short paragraphs).`
-
-const SESSION_STORAGE_KEY = 'education-labs:figure-2:session-id'
-const MESSAGES_STORAGE_KEY = 'education-labs:figure-2:messages'
-
+/**
+ * Figure 2's chat surface. Like FigureChat, the conversation (messages, session
+ * id, in-flight ask) lives in the ask-session store so navigating away doesn't
+ * lose a reply; this component owns the slash-command palette and expansion.
+ */
 export function Figure2Workspace({ figure }: Props) {
-  const { awardShape, isCompleted } = useLearnStore()
+  const {
+    fig2: { messages, streaming, send: sendAsk, stop },
+  } = useAskSession()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [messages, setMessages] = useState<Rendered[]>([])
   const [input, setInput] = useState('')
-  const [streaming, setStreaming] = useState(false)
   const [pickedCommand, setPickedCommand] = useState<SlashCommand | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [commands, setCommands] = useState<SlashCommand[]>([])
-  // The Agent SDK session ID for this conversation. Rehydrated from localStorage on
-  // mount; updated after every send. Cleared when the user resets progress.
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const lastUserIdRef = useRef<string | null>(null)
@@ -52,37 +49,6 @@ export function Figure2Workspace({ figure }: Props) {
   // from a `?prefill=` URL. After staging, we strip the param so a refresh doesn't
   // re-stage and overwrite something the user has since typed.
   const prefillConsumedRef = useRef(false)
-
-  // Rehydrate the session ID and the rendered messages from localStorage on mount so
-  // refreshing the page keeps both the conversation alive on the SDK side AND the visible
-  // history matching what Claude has in context. Without persisting messages, the user
-  // returns to a blank chat while Claude still remembers everything — causing replies that
-  // reference "earlier" turns the user can't see.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY)
-    if (storedSession) setSessionId(storedSession)
-    const storedMessages = window.localStorage.getItem(MESSAGES_STORAGE_KEY)
-    if (storedMessages) {
-      try {
-        const parsed = JSON.parse(storedMessages) as Rendered[]
-        if (Array.isArray(parsed)) setMessages(parsed)
-      } catch {
-        // Corrupted JSON in storage — ignore and let the chat start fresh.
-      }
-    }
-  }, [])
-
-  // Persist messages whenever they change. Skips when empty so we don't write an
-  // empty array on initial mount before the rehydrate effect has run.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (messages.length === 0) {
-      window.localStorage.removeItem(MESSAGES_STORAGE_KEY)
-      return
-    }
-    window.localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages))
-  }, [messages])
 
   // Same scroll behavior as FigureChat: pin a new user message or new assistant reply to the
   // top of the scroll viewport so reading starts from the first line, not the prior reply.
@@ -164,12 +130,11 @@ export function Figure2Workspace({ figure }: Props) {
     setPreviewOpen(false)
   }
 
-  const send = useCallback(async () => {
+  const send = useCallback(() => {
     if (!input.trim() || streaming) return
-    // If the input matches `/<picked-name>` or `/<picked-name> <args>`, expand it. The body
-    // gets sent as the actual prompt; any `$ARGUMENTS` in the body is replaced with whatever
-    // followed the slash token. Mirrors real Claude Code's slash-command semantics.
     const trimmed = input.trim()
+    // If the input matches `/<picked-name>` or `/<picked-name> <args>`, expand it. The body
+    // gets sent as the actual prompt.
     const usingSlash = (() => {
       if (!pickedCommand) return null
       const tokenOnly = `/${pickedCommand.name}`
@@ -179,82 +144,44 @@ export function Figure2Workspace({ figure }: Props) {
       }
       return null
     })()
-    const promptToSend = (() => {
-      if (!usingSlash) return input
-      const { body } = usingSlash.cmd
-      const args = usingSlash.args
-      if (body.includes('$ARGUMENTS')) return body.replaceAll('$ARGUMENTS', args)
-      // No $ARGUMENTS placeholder in the command file. If the user passed args anyway, append
-      // them as a Task: line so their intent doesn't get silently dropped.
-      return args ? `${body}\n\nTask: ${args}` : body
-    })()
+    const promptToSend = usingSlash ? expandCommand(usingSlash.cmd, usingSlash.args) : input
     const displayContent = usingSlash
       ? usingSlash.args
         ? `/${usingSlash.cmd.name} ${usingSlash.args}`
         : `/${usingSlash.cmd.name}`
       : input
-    const wasViaSlash = usingSlash?.cmd.name
 
-    const userMsg: Rendered = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: displayContent,
-      viaSlash: wasViaSlash,
-    }
-    setMessages((m) => [...m, userMsg])
+    sendAsk({ prompt: promptToSend, display: displayContent, viaSlash: usingSlash?.cmd.name })
     setInput('')
     setPickedCommand(null)
     setPreviewOpen(false)
-    setStreaming(true)
-    const controller = new AbortController()
-    abortRef.current = controller
+  }, [input, streaming, pickedCommand, sendAsk])
 
-    try {
-      const result = await ask({
-        systemPrompt: F2_SYSTEM,
-        userPrompt: promptToSend,
-        sessionId,
-        // Figure 2 needs both: project context loads .claude/commands/ so slash
-        // commands work, and CLAUDE.md so the commands can reference notes.
-        // No agent preset — this is text Q&A, not file editing.
-        loadProjectContext: true,
-        signal: controller.signal,
-      })
-      setMessages((m) => [
-        ...m,
-        { id: crypto.randomUUID(), role: 'assistant', content: result.text },
-      ])
-      // Capture the session ID the SDK assigned (new or continued) and persist it so
-      // a refresh keeps the conversation alive.
-      if (result.sessionId) {
-        setSessionId(result.sessionId)
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(SESSION_STORAGE_KEY, result.sessionId)
-        }
+  const lastMessage = messages[messages.length - 1]
+  // A user turn with no reply and nothing in flight = the ask was cut off by a full page
+  // reload. Offer a one-click resend; a slash turn is re-expanded from the on-disk
+  // commands list (the picked command didn't survive the reload).
+  const interrupted = !streaming && lastMessage?.role === 'user'
+  const resend = useCallback(() => {
+    if (streaming || !lastMessage || lastMessage.role !== 'user') return
+    const content = lastMessage.content
+    if (content.startsWith('/')) {
+      const tokenEnd = content.indexOf(' ')
+      const name = tokenEnd === -1 ? content.slice(1) : content.slice(1, tokenEnd)
+      const args = tokenEnd === -1 ? '' : content.slice(tokenEnd + 1).trim()
+      const match = commands.find((c) => c.name === name)
+      if (match) {
+        sendAsk({
+          prompt: expandCommand(match, args),
+          display: content,
+          viaSlash: match.name,
+          append: false,
+        })
+        return
       }
-      if (wasViaSlash && !isCompleted(figure.id)) {
-        awardShape(figure.id, figure.shape, `invoked /${wasViaSlash}`)
-      }
-    } catch (err) {
-      // A stop is the user's own act, not a failure — note it quietly instead
-      // of rendering the red error message.
-      if ((err as Error)?.name === 'AbortError') {
-        setMessages((m) => [
-          ...m,
-          { id: crypto.randomUUID(), role: 'assistant', content: '_Stopped._' },
-        ])
-      } else {
-        const errMsg = (err as Error)?.message ?? 'Request failed'
-        setMessages((m) => [
-          ...m,
-          { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errMsg}` },
-        ])
-      }
-    } finally {
-      abortRef.current = null
-      setStreaming(false)
     }
-  }, [input, streaming, pickedCommand, sessionId, figure, awardShape, isCompleted])
+    sendAsk({ prompt: content, display: content, append: false })
+  }, [streaming, lastMessage, commands, sendAsk])
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -320,6 +247,18 @@ export function Figure2Workspace({ figure }: Props) {
         )}
         {/* Chat transcripts get the large sketch — they have the vertical room. */}
         {streaming && <ThinkingState kind={figure.shape} tips={figure.tips} size={140} />}
+
+        {interrupted && (
+          <div className="border-border-subtle mx-4 my-2 flex items-center justify-between gap-3 rounded-md border border-dashed p-3 text-xs">
+            <span className="text-text-secondary">
+              This ask was interrupted before the reply arrived.
+            </span>
+            <Button size="sm" onClick={resend}>
+              <RefreshCw className="size-3" />
+              Resend
+            </Button>
+          </div>
+        )}
       </div>
 
       <ShapeAwardBanner
@@ -391,12 +330,7 @@ export function Figure2Workspace({ figure }: Props) {
             <span />
           )}
           {streaming ? (
-            <Button
-              size="icon"
-              variant="primary"
-              onClick={() => abortRef.current?.abort()}
-              aria-label="Stop"
-            >
+            <Button size="icon" variant="primary" onClick={stop} aria-label="Stop">
               <Square className="size-3.5 fill-current" />
             </Button>
           ) : (
