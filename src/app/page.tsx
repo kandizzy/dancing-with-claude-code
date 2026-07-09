@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRef } from 'react'
-import { FIGURES } from '@/lib/figures/registry'
+import { FIGURES, FIGURE_SHAPES } from '@/lib/figures/registry'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { ResetProgressButton } from '@/components/learn/ResetProgressButton'
 import { ArrowRight } from 'lucide-react'
@@ -13,14 +13,6 @@ import {
   useRafLoop,
 } from '@/lib/anim'
 import type { FigureId, ShapeKind } from '@/lib/figures/types'
-
-const FIGURE_SHAPES: Record<FigureId, ShapeKind> = {
-  1: 'circle',
-  2: 'triangle',
-  3: 'arc',
-  4: 'square',
-  5: 'composite',
-}
 
 // ============================================================================
 // Landing page — five figures laid out as a row of Shapes-style cells with
@@ -225,10 +217,16 @@ function FigureCell({
       aria-label={`${title} — figure ${figureId}`}
       className="group flex flex-col items-center gap-3"
     >
-      <div className="border-border-subtle group-hover:border-text-tertiary relative flex aspect-square w-full items-center justify-center rounded-sm border border-dashed transition-colors">
-        <span className="text-text-tertiary absolute left-3 top-2 font-mono text-[10px] uppercase tracking-widest">
+      {/* Hover needs to read against five already-animating shapes: a real background
+          change + an entering arrow, not just a border tint — same grammar as /home's list. */}
+      <div className="border-border-subtle group-hover:border-text-tertiary group-hover:bg-state-hover-soft relative flex aspect-square w-full items-center justify-center rounded-sm border border-dashed transition-colors">
+        <span className="text-text-tertiary group-hover:text-text-primary absolute left-3 top-2 font-mono text-[10px] uppercase tracking-widest transition-colors">
           fig. {figureId}
         </span>
+        <ArrowRight
+          aria-hidden
+          className="text-text-tertiary absolute bottom-2 right-3 size-3.5 opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100"
+        />
         <svg
           viewBox="-6 -6 60 60"
           className="h-[72%] w-[72%]"

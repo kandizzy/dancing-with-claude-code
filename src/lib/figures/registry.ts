@@ -1,4 +1,4 @@
-import type { FigureDefinition, FigureId } from './types'
+import type { FigureDefinition, FigureId, ShapeKind } from './types'
 import { figure1 } from './figure-1'
 import { figure2 } from './figure-2'
 import { figure3 } from './figure-3'
@@ -16,6 +16,16 @@ export const FIGURES: Record<FigureId, FigureDefinition> = {
 export function getFigure(id: number): FigureDefinition | null {
   if (id < 1 || id > 5) return null
   return FIGURES[id as FigureId] ?? null
+}
+
+// Derived nav lookups — nav surfaces (landing, /home, ShapeTray, header) share
+// these instead of each keeping a copy-pasted record.
+export const FIGURE_SHAPES = Object.fromEntries(
+  (Object.keys(FIGURES) as unknown as FigureId[]).map((id) => [id, FIGURES[id].shape]),
+) as Record<FigureId, ShapeKind>
+
+export function figureLabel(id: FigureId): string {
+  return `Figure ${id} · ${FIGURES[id].title}`
 }
 
 // --- System prompt assembly ------------------------------------------------

@@ -45,12 +45,14 @@ export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
   return (
     <div className={cn('relative z-30', className)} {...props}>
       <div className="border-border-subtle bg-surface flex w-full items-center gap-3 rounded-lg border px-4 py-2 text-xs">
+        {/* Hover on the row background, not text color — the inner spans set their own
+            text colors, which silently overrode a text-color hover here. */}
         <button
           type="button"
           onClick={() => setClaudeMdOpen(!claudeMdOpen)}
           aria-expanded={claudeMdOpen}
           aria-label={claudeMdOpen ? 'Collapse CLAUDE.md' : 'Expand CLAUDE.md'}
-          className="hover:text-text-primary flex flex-1 items-center gap-3 text-left"
+          className="hover:bg-state-hover-soft group -mx-2 flex flex-1 items-center gap-3 rounded-md px-2 py-1 text-left transition-colors"
         >
           <FileText className="text-text-secondary size-3.5" />
           <span className="text-text-secondary font-mono">CLAUDE.md</span>
@@ -60,7 +62,7 @@ export function ClaudeMdDrawer({ className, ...props }: ClaudeMdDrawerProps) {
           </span>
           <ChevronDown
             className={cn(
-              'text-text-tertiary ml-auto size-4 transition-transform',
+              'text-text-tertiary group-hover:text-text-primary ml-auto size-4 transition-transform',
               claudeMdOpen && 'rotate-180',
             )}
           />

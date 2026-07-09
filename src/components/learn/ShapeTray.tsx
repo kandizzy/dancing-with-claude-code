@@ -5,27 +5,17 @@ import { usePathname } from 'next/navigation'
 import { useLearnStore } from '@/lib/learn-store'
 import { Shape } from './Shape'
 import { cn } from '@/lib/utils'
-import type { FigureId, ShapeKind } from '@/lib/figures/types'
+import { FIGURE_SHAPES, figureLabel } from '@/lib/figures/registry'
+import type { FigureId } from '@/lib/figures/types'
 import type { ComponentProps } from 'react'
-
-const FIGURE_SHAPES: Record<FigureId, ShapeKind> = {
-  1: 'circle',
-  2: 'triangle',
-  3: 'arc',
-  4: 'square',
-  5: 'composite',
-}
-
-const FIGURE_TITLES: Record<FigureId, string> = {
-  1: 'Figure 1 · Write a CLAUDE.md',
-  2: 'Figure 2 · Try a slash command',
-  3: 'Figure 3 · Write a directive, not a chat',
-  4: 'Figure 4 · Read the diff before you accept',
-  5: 'Figure 5 · Make a branch, then ask',
-}
 
 type ShapeTrayProps = ComponentProps<'div'>
 
+/**
+ * Header shape row — it IS the figure navigation, not a progress readout, so
+ * every cell works to earn that reading: hover animates the earned shape and
+ * shows an instant label, and the current figure gets a visible ring.
+ */
 export function ShapeTray({ className, ...props }: ShapeTrayProps) {
   const { isCompleted } = useLearnStore()
   const pathname = usePathname()
@@ -45,14 +35,24 @@ export function ShapeTray({ className, ...props }: ShapeTrayProps) {
           <Link
             key={id}
             href={`/learn/${id}`}
-            aria-label={FIGURE_TITLES[id]}
-            title={FIGURE_TITLES[id]}
+            aria-label={figureLabel(id)}
+            aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'flex items-center justify-center rounded-full p-1 transition-colors',
-              isActive ? 'bg-state-active' : 'hover:bg-state-hover',
+              'group relative flex items-center justify-center rounded-full p-1 transition-colors',
+              isActive
+                ? 'bg-state-active ring-1 ring-[color:var(--color-border-subtle)]'
+                : 'hover:bg-state-hover',
             )}
           >
-            <Shape kind={FIGURE_SHAPES[id]} size={28} earned={isCompleted(id)} />
+            <Shape kind={FIGURE_SHAPES[id]} size={28} earned={isCompleted(id)} animate="hover" />
+            {/* Instant hover label (the native title tooltip's ~1s delay made these read
+                as inert dots). pointer-events-none so it never traps the mouse. */}
+            <span
+              aria-hidden
+              className="border-border-subtle bg-surface text-text-secondary shadow-popover pointer-events-none absolute right-0 top-full z-40 mt-1.5 hidden whitespace-nowrap rounded-md border px-2 py-1 text-[11px] group-hover:block group-focus-visible:block"
+            >
+              {figureLabel(id)}
+            </span>
           </Link>
         )
       })}

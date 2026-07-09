@@ -77,6 +77,9 @@ export function Dancer({
   const skirtArcRefs = useRef<Array<SVGGElement | null>>([])
   const reduced = useReducedMotion()
 
+  // Deliberately a raw rAF loop, NOT useRafLoop: that hook's reduced-motion
+  // contract is "fire once and freeze," while the dancer keeps moving at 0.3×
+  // amplitude (see ampScale below). Don't migrate this without changing that.
   useEffect(() => {
     let raf = 0
     const start = performance.now()

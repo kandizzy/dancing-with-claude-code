@@ -89,6 +89,16 @@ button:not(:disabled),
   cursor: pointer;
 }
 
+/* One keyboard-focus treatment for every interactive surface. Mouse clicks don't
+   trigger :focus-visible, so this only shows for keyboard/AT navigation. Inputs
+   keep their own focus:border styles. */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
 /* Custom scrollbar for chat area */
 .scroll-area::-webkit-scrollbar {
   width: 8px;

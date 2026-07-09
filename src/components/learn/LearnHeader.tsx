@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { ShapeTray } from './ShapeTray'
-import { getFigure } from '@/lib/figures/registry'
+import { figureLabel, getFigure } from '@/lib/figures/registry'
+import type { FigureId } from '@/lib/figures/types'
 
 export function LearnHeader() {
   const pathname = usePathname() ?? ''
@@ -58,11 +59,12 @@ export function LearnHeader() {
   )
 }
 
+// "Figure N · title" — the number ties the header to the highlighted tray shape.
 function sectionTitleFor(pathname: string): string | null {
   const match = pathname.match(/^\/learn\/(\d+)/)
   if (match) {
-    const figure = getFigure(Number(match[1]))
-    return figure?.title ?? null
+    const id = Number(match[1])
+    return getFigure(id) ? figureLabel(id as FigureId) : null
   }
   return null
 }

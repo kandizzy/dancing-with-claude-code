@@ -1,22 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { FIGURES } from '@/lib/figures/registry'
+import { FIGURES, FIGURE_SHAPES } from '@/lib/figures/registry'
 import { Shape } from '@/components/learn/Shape'
 import { LearnHeader } from '@/components/learn/LearnHeader'
 import { WebcamPlayground } from '@/components/learn/WebcamPlayground'
 import { ResetProgressButton } from '@/components/learn/ResetProgressButton'
 import { useLearnStore } from '@/lib/learn-store'
 import { ArrowRight } from 'lucide-react'
-import type { FigureId, ShapeKind } from '@/lib/figures/types'
-
-const FIGURE_SHAPES: Record<FigureId, ShapeKind> = {
-  1: 'circle',
-  2: 'triangle',
-  3: 'arc',
-  4: 'square',
-  5: 'composite',
-}
+import type { FigureId } from '@/lib/figures/types'
 
 // The workshop floor — webcam on the left, figure list on the right. This was
 // previously the landing page at /. The new landing (at /) is a quieter
