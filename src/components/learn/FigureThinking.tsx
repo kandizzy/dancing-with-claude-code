@@ -97,17 +97,20 @@ export function FigureThinking({ kind, noteInPlay = false, size = 140, className
   }
   // Shared sketch-stroke props. pathLength={1} normalizes every shape's length to 1 so the
   // dash draw-on is identical regardless of geometry; start hidden (offset 1) when animating.
+  // NO vector-effect here: non-scaling-stroke makes Chrome compute the dash pattern in screen
+  // pixels, which silently breaks the pathLength normalization — the outline renders as a
+  // frozen partial arc instead of drawing on. Stroke width is in user units instead (0.5 at
+  // the 96–140px render sizes ≈ a 1–1.5px hairline).
   const sketch = {
     ref: setOutline,
     fill: 'none' as const,
     stroke,
-    strokeWidth: 1.1,
+    strokeWidth: 0.5,
     strokeLinejoin: 'round' as const,
     strokeLinecap: 'round' as const,
     pathLength: 1,
     strokeDasharray: 1,
     strokeDashoffset: reduced ? 0 : 1,
-    vectorEffect: 'non-scaling-stroke' as const,
     opacity: 0.6,
   }
 
