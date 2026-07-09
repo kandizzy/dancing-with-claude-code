@@ -6,11 +6,11 @@ import { ask, gitAction, gitStatus, readDiff, isOverloadedError, isRateLimitErro
 import { ShapeAwardBanner } from './ShapeAwardBanner'
 import { OverloadNotice } from './OverloadNotice'
 import { ThinkingState } from './ThinkingState'
+import { CommandLine } from './CommandLine'
 import { Button, Modal } from '@/components/ui'
 import {
   ArrowRight,
   Check,
-  Copy,
   GitBranch,
   GitCompareArrows,
   GitMerge,
@@ -855,31 +855,6 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
         {label}
       </span>
       <div className="text-text-primary text-xs">{children}</div>
-    </div>
-  )
-}
-
-function CommandLine({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false)
-  const onCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(command)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    } catch { }
-  }
-  return (
-    <div className="bg-page flex items-start gap-2 rounded font-mono text-xs leading-relaxed">
-      <span className="text-text-tertiary select-none">$</span>
-      <code className="text-text-primary flex-1 whitespace-pre-wrap break-all">{command}</code>
-      <button
-        type="button"
-        onClick={onCopy}
-        aria-label="Copy command"
-        className="text-text-tertiary hover:text-text-primary shrink-0"
-      >
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      </button>
     </div>
   )
 }

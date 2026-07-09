@@ -17,7 +17,9 @@ import {
   Monitor,
   Sparkles,
   Terminal,
+  X,
 } from 'lucide-react'
+import { useCopy } from '@/lib/use-copy'
 import { FIGURE_3_EXTRA_SYSTEM } from '@/lib/figures/figure-3'
 import type { FigureDefinition } from '@/lib/figures/types'
 
@@ -63,7 +65,7 @@ export function Figure3Workspace({ figure }: Props) {
   // several equivalent ways to apply the same directive (terminal, desktop, browser).
   const [running, setRunning] = useState(false)
   const [runOutput, setRunOutput] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const { status: copyStatus, copy } = useCopy()
 
   const allFilled = scope.trim() && target.trim() && action.trim()
   const completed = isCompleted(figure.id)
@@ -121,16 +123,10 @@ export function Figure3Workspace({ figure }: Props) {
     }
   }, [reply, running])
 
-  const copyForTerminal = useCallback(async () => {
+  const copyForTerminal = useCallback(() => {
     if (!reply.trim()) return
-    try {
-      await navigator.clipboard.writeText(`claude -p "${reply.trim().replace(/"/g, '\\"')}"`)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard may be unavailable in some browser contexts; silent failure is fine.
-    }
-  }, [reply])
+    void copy(`claude -p "${reply.trim().replace(/"/g, '\\"')}"`)
+  }, [reply, copy])
 
   const isEmpty = !scope.trim() && !target.trim() && !action.trim()
 
@@ -226,9 +222,13 @@ export function Figure3Workspace({ figure }: Props) {
                       onClick={copyForTerminal}
                       className="border-border-subtle hover:bg-state-hover text-text-secondary inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
                     >
-                      {copied ? (
+                      {copyStatus === 'copied' ? (
                         <>
                           <Check className="size-3" /> Copied
+                        </>
+                      ) : copyStatus === 'failed' ? (
+                        <>
+                          <X className="text-danger size-3" /> Copy failed
                         </>
                       ) : (
                         <>

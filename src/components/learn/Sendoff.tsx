@@ -11,12 +11,11 @@
  * when both are true.
  */
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dancer } from '@/components/explore/Dancer'
 import { Button } from '@/components/ui'
 import { useLearnStore } from '@/lib/learn-store'
-import { Check, Copy } from 'lucide-react'
+import { CommandLine } from './CommandLine'
 
 type Props = {
   // 'merged' or 'discarded' if figure 5 has been completed (drives the
@@ -135,34 +134,5 @@ export function Sendoff({ decision, branchName, onDismiss, justDecided }: Props)
         </div >
       </div >
     </div >
-  )
-}
-
-// Copy-to-clipboard command row. Local to this file (not shared) — the
-// figure 5 workspace has its own version with the same shape.
-function CommandLine({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false)
-  const onCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(command)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // Clipboard may be unavailable in some browser contexts; silent failure is fine.
-    }
-  }
-  return (
-    <div className="bg-page flex items-start gap-2 rounded font-mono text-xs leading-relaxed">
-      <span className="text-text-tertiary select-none">$</span>
-      <code className="text-text-primary flex-1 whitespace-pre-wrap break-all">{command}</code>
-      <button
-        type="button"
-        onClick={onCopy}
-        aria-label="Copy command"
-        className="text-text-tertiary hover:text-text-primary shrink-0"
-      >
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      </button>
-    </div>
   )
 }
