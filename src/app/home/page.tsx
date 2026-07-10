@@ -62,7 +62,7 @@ export default function Home() {
       </div>
 
       <footer className="flex items-center justify-between gap-4">
-        <span className="font-script text-text-tertiary text-sm italic">
+        <span className="font-display text-text-tertiary text-xs lowercase tracking-[0.14em]">
           After Oskar Schlemmer · Bauhaus dances, 1922–1929
         </span>
         <ResetProgressButton />

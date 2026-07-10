@@ -38,7 +38,12 @@ export function WaitingTips({ tips, className }: { tips?: string[]; className?: 
     <p
       ref={ref}
       aria-live="polite"
-      className={cn('text-text-tertiary text-center text-xs leading-relaxed', className)}
+      // The display voice (§04 of the direction): the teacher's placard while Claude
+      // works. Gentle letterspacing only — these are full sentences, not labels.
+      className={cn(
+        'font-display text-text-tertiary text-center text-xs leading-relaxed tracking-[0.05em]',
+        className,
+      )}
     >
       {list[0]}
     </p>

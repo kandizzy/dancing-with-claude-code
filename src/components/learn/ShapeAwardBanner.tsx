@@ -15,6 +15,18 @@ type Props = {
 
 const ENTRANCE_MS = 450
 
+// Per-figure earn colors (design direction §02, decided): the earn moment wears the
+// figure's own primary. Red keeps only its app-wide CLAUDE.md-lineage jobs elsewhere.
+// Composite's border is the square's blue — with the red circle in the Shape beside it,
+// the banner is the one surface where two primaries meet.
+const EARN_COLORS: Record<ShapeKind, { border: string; wash: string }> = {
+  circle: { border: '--color-accent-strong', wash: '--color-accent' },
+  triangle: { border: '--color-secondary-strong', wash: '--color-secondary' },
+  arc: { border: '--color-tertiary-strong', wash: '--color-tertiary' },
+  square: { border: '--color-stage', wash: '--color-stage' },
+  composite: { border: '--color-secondary-strong', wash: '--color-secondary' },
+}
+
 /**
  * The one earned-moment treatment, shared by all five figures. Persist-forever
  * (earned is earned), but the *earning* visit celebrates: if completion flips
@@ -53,11 +65,16 @@ export function ShapeAwardBanner({ figureId, kind, shapeLabel, copy }: Props) {
   }, [justEarned, reduced])
 
   if (!completed) return null
+  const earn = EARN_COLORS[kind]
   return (
     <div
       ref={cardRef}
-      style={justEarned && !reduced ? { opacity: 0 } : undefined}
-      className="rounded-md border border-[color:var(--color-accent-strong)] bg-[color:var(--color-accent)]/5 p-4 text-sm"
+      style={{
+        ...(justEarned && !reduced ? { opacity: 0 } : undefined),
+        borderColor: `var(${earn.border})`,
+        backgroundColor: `color-mix(in srgb, var(${earn.wash}) 5%, transparent)`,
+      }}
+      className="rounded-md border p-4 text-sm"
     >
       <div className="text-text-primary mb-1 flex items-center gap-2 font-semibold">
         <Shape kind={kind} size={24} earned animate={justEarned ? 'always' : 'hover'} />

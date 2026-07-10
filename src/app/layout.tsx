@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Caveat } from 'next/font/google'
+import { Geist, Geist_Mono, Jost } from 'next/font/google'
 import { LearnProvider } from '@/lib/learn-store'
 import { AskSessionProvider } from '@/lib/ask-session-store'
 import './globals.css'
@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-const caveat = Caveat({
-  variable: '--font-caveat',
+// The display voice — geometric, Bauhaus-line (the libre Futura-class face,
+// standing in for Quesat per the design direction). Marks the stage: eyebrow,
+// figure labels, credits, waiting tips, step cues.
+const jost = Jost({
+  variable: '--font-jost',
   subsets: ['latin'],
   weight: ['400', '500', '600'],
 })
@@ -34,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${jost.variable} font-sans antialiased`}
       >
         <LearnProvider>
           {/* Inside LearnProvider: figure 1's completion chain needs awardShape + pin state.

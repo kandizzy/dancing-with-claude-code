@@ -162,7 +162,7 @@ export function WebcamPlayground({ className }: { className?: string }) {
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80">
             {detectorReady ? (
               <>
-                <p className="font-script text-2xl tracking-wide">Detection studio</p>
+                <p className="font-display text-xl lowercase tracking-[0.18em]">Detection studio</p>
                 <p className="text-xs italic opacity-70">
                   face detection · MediaPipe Tasks · in your browser
                 </p>

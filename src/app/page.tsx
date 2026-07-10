@@ -83,7 +83,7 @@ export default function Landing() {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-10">
         <div className="flex w-full flex-col items-center gap-3">
-          <p className="font-script text-text-tertiary text-xl italic">
+          <p className="font-display text-text-tertiary text-sm lowercase tracking-[0.22em]">
             The score before the dance
           </p>
           <h1 className="text-text-primary max-w-3xl text-center font-serif text-3xl leading-tight">
@@ -116,7 +116,7 @@ export default function Landing() {
       </div>
 
       <footer className="flex items-center justify-between gap-4">
-        <span className="font-script text-text-tertiary text-sm italic">
+        <span className="font-display text-text-tertiary text-xs lowercase tracking-[0.14em]">
           After Oskar Schlemmer · Bauhaus dances, 1922–1929
         </span>
         <ResetProgressButton />

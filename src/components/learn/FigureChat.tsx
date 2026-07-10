@@ -55,7 +55,6 @@ export function FigureChat({ figure, className }: FigureChatProps) {
       streaming,
       judging,
       staleAskPending,
-      notesLoading,
       pendingError,
       send,
       reload,
@@ -225,7 +224,7 @@ export function FigureChat({ figure, className }: FigureChatProps) {
         )}
 
         {streaming && (
-          <ThinkingState kind={figure.shape} tips={figure.tips} noteInPlay={notesLoading} size={140} />
+          <ThinkingState kind={figure.shape} tips={figure.tips} size={180} />
         )}
 
         {judging && (
@@ -268,6 +267,9 @@ export function FigureChat({ figure, className }: FigureChatProps) {
          real Claude Code gotcha and offer the reload that applies it. */}
       {showReloadNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
+          <p className="text-text-primary m-0 mb-1 font-serif text-base">
+            Claude can&apos;t see that edit yet.
+          </p>
           <p className="text-text-secondary m-0">
             That answer didn&apos;t use your latest CLAUDE.md edit — Claude can&apos;t see changes
             you make <em>after</em> a session starts. In Claude Code you&apos;d run{' '}
@@ -289,10 +291,13 @@ export function FigureChat({ figure, className }: FigureChatProps) {
 
       {showFollowUpNudge && (
         <div className="border-border-subtle rounded-md border p-4 text-sm">
+          <p className="text-text-primary m-0 mb-1 font-serif text-base">
+            No note landed this time.
+          </p>
           <p className="text-text-secondary m-0">
-            Claude didn&apos;t pull from your notes this time. Either the question didn&apos;t
-            touch any of them, or the notes are too general to land. Try adding a more specific
-            one — or rewrite an existing note tighter — and ask again.
+            Either the question didn&apos;t touch any of your notes, or the notes are too general
+            to land. Try adding a more specific one — or rewrite an existing note tighter — and
+            ask again.
           </p>
         </div>
       )}

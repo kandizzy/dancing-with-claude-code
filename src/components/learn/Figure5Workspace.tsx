@@ -625,7 +625,11 @@ export function Figure5Workspace({ figure }: Props) {
                   <span className="font-mono">git diff</span>
                 </div>
                 <pre className="scroll-area max-h-72 overflow-auto p-3 font-mono text-[11px] leading-[1.55]">
-                  {diffText || '(no changes detected — claude may have skipped the edit)'}
+                  {diffText ? (
+                    <GitDiffLines text={diffText} />
+                  ) : (
+                    '(no changes detected — claude may have skipped the edit)'
+                  )}
                 </pre>
               </div>
             )}
@@ -805,7 +809,14 @@ function Stepper({
               i > 0 && 'border-border-soft border-l',
             )}
           >
-            <span className="text-text-tertiary font-mono text-[10px]">{n}/5</span>{' '}
+            <span
+              className={cn(
+                'font-display text-[10px] tracking-[0.14em]',
+                isActive ? 'text-[color:var(--color-accent-strong)]' : 'text-text-tertiary',
+              )}
+            >
+              0{n}
+            </span>{' '}
             {STEP_TITLES[n]}
           </button>
         )
@@ -829,9 +840,13 @@ function Beat({
 }) {
   return (
     <div className="border-border-subtle bg-surface flex flex-col gap-3 rounded-lg border p-4">
-      <div className="flex items-center gap-2">
-        <span className="text-text-tertiary font-mono text-xs">{n}/5</span>
-        {icon}
+      <div className="flex items-baseline gap-3">
+        {/* The display cue (design direction, decided): a bare letterspaced numeral in the
+            figure's primary — the fourth voice calls the step. */}
+        <span className="font-display text-lg leading-none tracking-[0.14em] text-[color:var(--color-accent-strong)]">
+          0{n}
+        </span>
+        <span className="self-center">{icon}</span>
         <h3 className="text-text-primary m-0 font-serif text-lg">{title}</h3>
       </div>
       <p className="text-text-tertiary m-0 text-xs leading-relaxed">{why}</p>
@@ -861,6 +876,30 @@ function NavRow({
         <ArrowRight className="size-4" />
       </Button>
     </div>
+  )
+}
+
+// Raw `git diff` text with added/removed lines tinted — same convention as figure 4's
+// DiffView (the diff is the lesson; give it the care the shapes get). File headers
+// (+++/---) stay neutral.
+function GitDiffLines({ text }: { text: string }) {
+  return (
+    <>
+      {text.split('\n').map((line, i) => {
+        const added = line.startsWith('+') && !line.startsWith('+++')
+        const removed = line.startsWith('-') && !line.startsWith('---')
+        const color = added
+          ? 'bg-[color:var(--color-success,#16a34a)]/10 text-[color:var(--color-success,#16a34a)]'
+          : removed
+            ? 'bg-[color:var(--color-danger,#dc2626)]/10 text-[color:var(--color-danger,#dc2626)]'
+            : 'text-text-secondary'
+        return (
+          <span key={i} className={`block whitespace-pre-wrap ${color}`}>
+            {line || ' '}
+          </span>
+        )
+      })}
+    </>
   )
 }
 
