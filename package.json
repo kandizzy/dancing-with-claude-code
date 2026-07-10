@@ -47,6 +47,7 @@
     "@typescript-eslint/type-utils": "8.56.1",
     "@typescript-eslint/scope-manager": "8.56.1",
     "@typescript-eslint/visitor-keys": "8.56.1",
-    "@typescript-eslint/types": "8.56.1"
+    "@typescript-eslint/types": "8.56.1",
+    "js-yaml": "^4.3.0"
   }
 }
